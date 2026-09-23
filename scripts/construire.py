@@ -315,6 +315,15 @@ def contacts_service_public():
         stats["contacts_service_public"] += 1
 
 
+# Mots trop courants pour identifier une entreprise à eux seuls (rapprochement OSM par le nom)
+MOTS_COMMUNS = set("""SARL SAS SASU EURL SCI SNC SCOP SELARL ETS ETABLISSEMENTS STE SOCIETE GROUPE HOLDING FILS FRERES CIE
+LES DES AND FRANCE THE DU DE LA LE ET EN AUX SUR SOUS SAINT SAINTE GESTION AUTO AUTOS AUTOMOBILE AUTOMOBILES SERVICE SERVICES
+CONSEIL CONSEILS INFORMATIQUE IMMOBILIER IMMOBILIERE AGENCE CENTRE ENTREPRISE ENTREPRISES COMMUNE MAIRIE DEPARTEMENT
+DEPARTEMENTAL REGION REGIONAL NOUVELLE AQUITAINE ATLANTIQUE OUEST SUD NORD EST POITOU CHARENTE CHARENTES CHARENTAIS
+CHARENTAISE VIENNE SEVRES DEUX MARITIME INDUSTRIE INDUSTRIES INDUSTRIEL TECHNOLOGIE TECHNOLOGIES SYSTEMES SYSTEME SOLUTIONS
+DISTRIBUTION TRANSPORT TRANSPORTS BATIMENT ELECTRICITE ELECTRONIQUE RESEAU RESEAUX MAINTENANCE TRAVAUX ASSOCIATION CLUB
+GARAGE BOULANGERIE PHARMACIE CABINET BUREAU BUREAUX HOTEL RESTAURANT BAR CAFE MAGASIN BOUTIQUE ATELIER""".split())
+
 OSM_AJOUT = {  # objets OSM ajoutés s'ils ne correspondent à aucune fiche SIRENE : tag -> (catégorie, libellé)
     ("shop", "computer"): ("maint", "Boutique informatique"),
     ("craft", "computer"): ("maint", "Dépannage informatique"),
@@ -362,7 +371,14 @@ def contacts_osm():
                 yield from grid.get((round(lat + a, 2), round(lon + b, 2)), [])
 
     def jetons(s):
-        return {w for w in re.findall(r"[A-Z0-9]{3,}", nrm(s)) if w not in ("SARL", "SAS", "SASU", "EURL", "ETS", "LES", "DES", "AND", "FRANCE")}
+        """Mots distinctifs d'un nom (sans formes juridiques ni mots trop courants)."""
+        return {w for w in re.findall(r"[A-Z0-9]{3,}", nrm(s)) if w not in MOTS_COMMUNS}
+
+    def meme_nom(a, b):
+        """Rapprochement par le nom : tous les mots distinctifs du nom le plus court se retrouvent dans l'autre."""
+        if not a or not b: return False
+        court, long_ = (a, b) if len(a) <= len(b) else (b, a)
+        return court <= long_
 
     for r in recs.values():
         if r["lat"] is None: continue
@@ -372,8 +388,9 @@ def contacts_osm():
         if not o:
             jr = jetons(r["nom"] + " " + r["ens"])
             if jr:
-                o = next((x for x in voisins(r["lat"], r["lon"]) if x["t"].get("name")
-                          and jr & jetons(x["t"]["name"]) and dist_m(r["lat"], r["lon"], x["lat"], x["lon"]) < 150), None)
+                cands = [x for x in voisins(r["lat"], r["lon"]) if x["t"].get("name") and not x["used"]
+                         and meme_nom(jr, jetons(x["t"]["name"])) and dist_m(r["lat"], r["lon"], x["lat"], x["lon"]) < 150]
+                o = min(cands, key=lambda x: dist_m(r["lat"], r["lon"], x["lat"], x["lon"]), default=None)
         if o:
             apply(r, o)
             stats["contacts_osm"] += 1
