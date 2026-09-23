@@ -193,28 +193,32 @@
     map.attributionControl.setPrefix(false);
     onView = (v) => { if (v === "map") setTimeout(() => map.invalidateSize(), 0); };
     matchMedia("(max-width: 759px)").addEventListener("change", () => setTimeout(() => map.invalidateSize(), 0));
-    // Fond vectoriel embarqué : toujours présent, visible seul si les tuiles OSM ne se chargent pas (hors ligne…)
-    const baseLayer = L.geoJSON(BASE, { interactive: false, style: (f) => {
-      const ours = f.properties.code in DEPS;
-      return { color: token("--dep-line"), weight: ours ? 1.6 : 0.8, fillColor: token(ours ? "--land-in" : "--land"), fillOpacity: 1, opacity: ours ? 1 : 0.5 };
-    } }).addTo(map);
-    const townLayer = L.layerGroup().addTo(map);
+    // Fond de carte : tuiles OpenStreetMap. Le fond vectoriel embarqué (contours + villes) ne s'affiche
+    // que si les tuiles ne se chargent pas (hors ligne, réseau filtré…), pour ne jamais se superposer à OSM.
     const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">contributeurs OpenStreetMap</a>' });
-    let tileErr = 0, tileOk = 0;
-    tiles.on("tileerror", () => { if (++tileErr > 3 && !tileOk) map.removeLayer(tiles); });
-    tiles.on("tileload", () => { if (!tileOk++) { baseLayer.setStyle({ fillOpacity: 0, weight: 2, opacity: 0.7 }); townLayer.remove(); depLbl.remove(); } });
-    tiles.addTo(map);
+      maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">contributeurs OpenStreetMap</a>' }).addTo(map);
+    let tileOk = false, tileErr = 0, fallbackOn = false;
+    tiles.on("tileload", () => { tileOk = true; });
+    tiles.on("tileerror", () => { if (++tileErr > 3 && !tileOk) useFallback(); });
+    setTimeout(() => { if (!tileOk) useFallback(); }, 6000);
+    const townLayer = L.layerGroup();
     const depLbl = L.layerGroup([[45.72, 0.2, "Charente"], [45.83, -0.6, "Charente-Maritime"], [46.5, -0.35, "Deux-Sèvres"], [46.55, 0.55, "Vienne"]]
       .map(([a, b, n]) => L.marker([a, b], { interactive: false, keyboard: false, icon: L.divIcon({ className: "dep-lbl", html: n, iconSize: null }) })));
     function drawTowns() {
-      if (tileOk) return;
       townLayer.clearLayers(); const z = map.getZoom(); const min = z < 8.5 ? 25000 : z < 9.5 ? 9000 : z < 10.5 ? 4000 : 2500;
       TOWNS.filter((t) => t[3] >= min).forEach((t) => L.marker([t[1], t[2]], { interactive: false, keyboard: false,
         icon: L.divIcon({ className: "town-lbl" + (t[3] > 40000 ? " big" : ""), html: esc(t[0]), iconSize: null, iconAnchor: [-4, 8] }) }).addTo(townLayer));
+      map.getZoom() < 8.5 ? depLbl.addTo(map) : depLbl.remove();
     }
-    map.on("zoomend", () => { drawTowns(); if (!tileOk) map.getZoom() < 8.5 ? depLbl.addTo(map) : depLbl.remove(); });
-    drawTowns(); depLbl.addTo(map);
+    function useFallback() {
+      if (fallbackOn) return; fallbackOn = true;
+      map.removeLayer(tiles);
+      L.geoJSON(BASE, { interactive: false, style: (f) => {
+        const ours = f.properties.code in DEPS;
+        return { color: token("--dep-line"), weight: ours ? 1.6 : 0.8, fillColor: token(ours ? "--land-in" : "--land"), fillOpacity: 1, opacity: ours ? 1 : 0.5 };
+      } }).addTo(map).bringToBack();
+      townLayer.addTo(map); drawTowns(); map.on("zoomend", drawTowns);
+    }
 
     const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: (z) => (z < 10 ? 50 : 35), disableClusteringAtZoom: 14,
       spiderfyOnMaxZoom: true, chunkedLoading: true,
