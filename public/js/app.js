@@ -41,6 +41,26 @@
   $("about-open").addEventListener("click", () => { if (about.showModal) about.showModal(); else about.setAttribute("open", ""); });
   about.addEventListener("click", (e) => { if (e.target === about) about.close(); });
 
+  // Panneau de filtres (tablette / téléphone) et onglets Liste / Carte
+  const panel = $("filters"), scrim = $("scrim"), appEl = $("app");
+  const narrow = () => matchMedia("(max-width: 1179px)").matches;
+  const phone = () => matchMedia("(max-width: 759px)").matches;
+  function openFilters(on) {
+    panel.classList.toggle("open", on); scrim.hidden = !on; $("filters-open").setAttribute("aria-expanded", on);
+    if (on) panel.querySelector("summary")?.focus();
+  }
+  $("filters-open").addEventListener("click", () => openFilters(true));
+  $("filters-close").addEventListener("click", () => openFilters(false));
+  scrim.addEventListener("click", () => openFilters(false));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && panel.classList.contains("open")) openFilters(false); });
+  let onView = () => {};
+  function setView(v) {
+    appEl.dataset.view = v;
+    document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-pressed", b.dataset.view === v));
+    onView(v);
+  }
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
+
   // grist.json est facultatif (synchronisation avec le tableau Grist de l'enseignant, voir scripts/grist_sync.py)
   const optional = (p) => fetch(p).then((r) => (r.ok ? r.json() : null)).catch(() => null);
   Promise.all(["data/lieux.json", "data/meta.json", "data/naf.json", "data/departements.json", "data/villes.json"].map(getJSON).concat(optional("data/grist.json")))
@@ -118,6 +138,29 @@
     chips("f-cat", "cat", Object.entries(CATS), (k) => `<span class="dot" style="background:${col(k)}"></span>`);
     chips("f-size", "size", Object.entries(SIZES));
     chips("f-src", "src", Object.entries(SRCS));
+    // Boutons rapides du bandeau : même état que le filtre « Secteur » du panneau.
+    // Tout est coché -> un clic isole l'activité ; ensuite chaque clic ajoute / retire ; « Tout » réinitialise.
+    const COURT = { info: "Informatique", cyber: "Cyber", tele: "Réseaux / fibre", elec: "Électronique", maint: "Dépannage",
+      secu: "Alarmes / vidéo", grande: "Sièges & DSI", elecb: "Électricité", comm: "Vente info", etudes: "Bureaux d'études",
+      public: "Collectivités", sante: "Santé", media: "Médias", sport: "Sport", autre: "Autres" };
+    const catCount = counts("cat");
+    const qcEl = $("quickcats");
+    qcEl.innerHTML = `<button type="button" class="qc qc-all" data-cat="*">Tout</button>` + Object.keys(COURT).filter((k) => CATS[k] && catCount[k])
+      .map((k) => `<button type="button" class="qc" data-cat="${k}" title="${esc(CATS[k])} (${catCount[k]})"><span class="dot" style="background:${col(k)}"></span>${esc(COURT[k])}</button>`).join("");
+    qcEl.addEventListener("click", (e) => {
+      const b = e.target.closest(".qc"); if (!b) return;
+      const k = b.dataset.cat, all = Object.keys(CATS);
+      if (k === "*") state.cat = new Set(all);
+      else if (state.cat.size === all.length) state.cat = new Set([k]);
+      else { state.cat.has(k) ? state.cat.delete(k) : state.cat.add(k); if (!state.cat.size) state.cat = new Set(all); }
+      apply();
+    });
+    function syncCats() {
+      const all = state.cat.size === Object.keys(CATS).length;
+      qcEl.classList.toggle("some", !all);
+      qcEl.querySelectorAll(".qc").forEach((b) => b.setAttribute("aria-pressed", b.dataset.cat === "*" ? all : !all && state.cat.has(b.dataset.cat)));
+      document.querySelectorAll("#f-cat input").forEach((i) => (i.checked = state.cat.has(i.value)));
+    }
     function setAllCats(on) { state.cat = on ? new Set(Object.keys(CATS)) : new Set(); document.querySelectorAll("#f-cat input").forEach((i) => (i.checked = on)); apply(); }
     $("cat-all").onclick = () => setAllCats(true);
     $("cat-none").onclick = () => setAllCats(false);
@@ -138,7 +181,7 @@
     [...TOWNS].sort((a, b) => a[0].localeCompare(b[0], "fr")).forEach((t) => { if (t[0] !== VILLE_LYCEE) townSel.add(new Option(t[0], t[0])); });
     townSel.value = state.town;
     const km = $("km"), kmo = $("kmo"); km.value = state.km; kmo.textContent = state.km + " km";
-    townSel.onchange = () => { state.town = townSel.value; apply(true); };
+    townSel.onchange = () => { state.town = townSel.value; apply(true); if (narrow() && state.town) openFilters(false); };
     km.oninput = () => { state.km = +km.value; kmo.textContent = km.value + " km"; apply(); };
     km.onchange = () => apply(true);
     let qt; $("q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; apply(); }, 150); });
@@ -148,6 +191,8 @@
     // ---------------------------------------------------------- carte
     const map = L.map("map", { preferCanvas: true, zoomSnap: 0.5, minZoom: 7, maxZoom: 19 }).setView([46.1, -0.2], 8);
     map.attributionControl.setPrefix(false);
+    onView = (v) => { if (v === "map") setTimeout(() => map.invalidateSize(), 0); };
+    matchMedia("(max-width: 759px)").addEventListener("change", () => setTimeout(() => map.invalidateSize(), 0));
     // Fond vectoriel embarqué : toujours présent, visible seul si les tuiles OSM ne se chargent pas (hors ligne…)
     const baseLayer = L.geoJSON(BASE, { interactive: false, style: (f) => {
       const ours = f.properties.code in DEPS;
@@ -257,10 +302,16 @@
       current.sort(t ? (a, b) => a.d - b.d || b.rel - a.rel
         : (a, b) => !!b.stage - !!a.stage || b.rel - a.rel || b.hasContact - a.hasContact || a.ville.localeCompare(b.ville, "fr") || a.title.localeCompare(b.title, "fr"));
       $("nres").textContent = current.length.toLocaleString("fr-FR");
+      syncCats();
       hint("h-rel", state.rel, REL); hint("h-dep", state.dep, DEPS); hint("h-cat", state.cat, CATS); hint("h-size", state.size, SIZES); hint("h-src", state.src, SRCS);
       $("h-naf").textContent = state.naf || "tous";
       $("h-contact").textContent = [state.contact && "avec contact", state.stage && "stages"].filter(Boolean).join(", ");
       $("h-dist").textContent = t ? `${state.km} km autour de ${t[0]}` : "toutes distances";
+      $("sortinfo").textContent = t ? `· du plus proche au plus loin de ${t[0]}` : "· triés par pertinence";
+      const full = (set, all) => set.size === Object.keys(all).length;
+      const actifs = [!(state.rel.size === 2 && state.rel.has("3") && state.rel.has("2")), !full(state.dep, DEPS), !full(state.cat, CATS),
+        !full(state.size, SIZES), !full(state.src, SRCS), !!state.naf, !!t, state.contact, state.stage].filter(Boolean).length;
+      $("nactive").hidden = !actifs; $("nactive").textContent = actifs;
       cluster.clearLayers(); cluster.addLayers(current.map((r) => r.m));
       if (townCircle) { map.removeLayer(townCircle); townCircle = null; }
       if (t) {
@@ -290,10 +341,13 @@
       const it = e.target.closest(".item"); if (it) focusRow(rows[+it.dataset.i]);
     });
     listEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { const it = e.target.closest(".item"); if (it) focusRow(rows[+it.dataset.i]); } });
-    function focusRow(r) { cluster.zoomToShowLayer(r.m, () => r.m.openPopup()); if (innerWidth <= 760) document.querySelector(".mapwrap").scrollIntoView({ behavior: "smooth", block: "start" }); }
+    function focusRow(r) {
+      if (phone()) setView("map");
+      setTimeout(() => cluster.zoomToShowLayer(r.m, () => r.m.openPopup()), phone() ? 60 : 0);
+    }
     function highlight(r) {
       document.querySelectorAll(".item.sel").forEach((x) => x.classList.remove("sel"));
-      const it = document.querySelector(`.item[data-i="${r.i}"]`); if (it) { it.classList.add("sel"); if (innerWidth > 760) it.scrollIntoView({ block: "nearest" }); }
+      const it = document.querySelector(`.item[data-i="${r.i}"]`); if (it) { it.classList.add("sel"); if (!phone()) it.scrollIntoView({ block: "nearest" }); }
     }
     apply(!!state.town);
   }

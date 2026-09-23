@@ -12,20 +12,32 @@
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-<div class="app">
-  <aside class="side">
-    <div class="head">
-      <div class="brand">
-        <h1>Trouve ta voie PFMP<small>Lieux de stage bac pro CIEL · LP Louise Michel, Ruffec · 16 · 17 · 79 · 86</small></h1>
-        <div class="count" aria-live="polite"><b id="nres">…</b> lieux</div>
-      </div>
-      <div class="search">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <input id="q" type="search" placeholder="Nom, ville, activité, code NAF (ex. réseau, Ruffec, 62.01)…" autocomplete="off" aria-label="Rechercher">
-      </div>
+<header class="topbar">
+  <button type="button" class="btn-filters" id="filters-open" aria-controls="filters" aria-expanded="false">
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h12M4.5 8h7M7 12.5h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" fill="none"/></svg>
+    Filtres <span class="badge" id="nactive" hidden></span></button>
+  <div class="brand">
+    <h1>Trouve ta voie PFMP</h1>
+    <span class="sub">Lieux de stage bac pro CIEL · LP Louise Michel, Ruffec</span>
+  </div>
+  <div class="search">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <input id="q" type="search" placeholder="Nom, ville, activité, code NAF…" autocomplete="off" aria-label="Rechercher une entreprise">
+  </div>
+  <div class="quickcats" id="quickcats" role="group" aria-label="Filtrer par activité"></div>
+  <nav class="tabs" aria-label="Affichage">
+    <button type="button" data-view="list" aria-pressed="true">Liste</button>
+    <button type="button" data-view="map" aria-pressed="false">Carte</button>
+  </nav>
+</header>
+<div class="app" id="app" data-view="list">
+  <aside class="filters-panel" id="filters" aria-label="Filtres">
+    <div class="fp-head">
+      <b>Filtres</b>
+      <span><button class="linkbtn" type="button" id="reset">Réinitialiser</button>
+      <button type="button" class="fp-close" id="filters-close" aria-label="Fermer les filtres">✕</button></span>
     </div>
-    <div class="rest">
-      <div class="filters">
+    <div class="filters">
         <details class="f" open><summary>Pertinence pour le CIEL <span class="hint" id="h-rel"></span></summary><div class="fbody" id="f-rel"></div></details>
         <details class="f" open><summary>Département <span class="hint" id="h-dep"></span></summary><div class="fbody" id="f-dep"></div></details>
         <details class="f" open><summary>Près de chez moi <span class="hint" id="h-dist">toutes distances</span></summary>
@@ -52,12 +64,7 @@
             <p>Clique sur un point ou une ligne pour voir la fiche : téléphone, e-mail et site quand on les a trouvés, sinon utilise les liens de recherche.</p>
             <p>Les ★ restent dans ton navigateur uniquement. Vérifie toujours que l'entreprise existe encore avant d'appeler.</p>
           </div></details>
-      </div>
-      <div class="tools">
-        <label><input type="checkbox" id="onlyfav"> Mes ★ (<span id="nfav">0</span>)</label>
-        <span><button class="linkbtn" type="button" id="copylist">Copier la liste (tableur)</button> · <button class="linkbtn" type="button" id="copyfav">Copier mes ★</button> · <button class="linkbtn" type="button" id="reset">Réinitialiser</button></span>
-      </div>
-      <div class="list" id="list" role="list"><div class="empty">Chargement des données…</div></div>
+    </div>
       <footer class="foot">
         <nav class="foot-links" aria-label="Liens du projet">
           <a href="https://forge.apps.education.fr/bacprociel/lp-louise-michel-ruffec/Trouve_Ta_Voie_PFMP" target="_blank" rel="noopener">Dépôt</a>
@@ -66,7 +73,6 @@
         </nav>
         <div>Données : Insee SIRENE, service-public.fr, © contributeurs <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL), sites web des entreprises. Mise à jour : <span id="maj">—</span>.</div>
       </footer>
-    </div>
   </aside>
   <main class="mapwrap">
     <div id="map" aria-label="Carte des entreprises"></div>
@@ -79,7 +85,19 @@
       <span class="lg-note">Couleur = secteur</span>
     </div>
   </main>
+  <section class="results" aria-label="Liste des lieux">
+    <div class="results-head">
+      <div class="count" aria-live="polite"><b id="nres">…</b> lieux <span class="sort" id="sortinfo"></span></div>
+      <div class="tools">
+        <label><input type="checkbox" id="onlyfav"> Mes ★ (<span id="nfav">0</span>)</label>
+        <button class="linkbtn" type="button" id="copylist">Copier la liste</button>
+        <button class="linkbtn" type="button" id="copyfav">Copier mes ★</button>
+      </div>
+    </div>
+    <div class="list" id="list" role="list"><div class="empty">Chargement des données…</div></div>
+  </section>
 </div>
+<div class="scrim" id="scrim" hidden></div>
 <dialog id="about" class="about" aria-labelledby="about-title">
   <form method="dialog">
     <h2 id="about-title">À propos</h2>
