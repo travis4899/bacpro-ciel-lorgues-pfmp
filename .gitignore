@@ -1,0 +1,8 @@
+# Réponses d'API mises en cache : régénérables avec scripts/collecte.py
+cache/
+__pycache__/
+*.pyc
+# Exports bruts de l'enseignant : contiennent des noms de dirigeants, restent en local (Nextcloud)
+sources/Export_Portail_Data*.csv
+sources/*vrac*.txt
+sources/annuaire-des-entreprises-etablissements*.csv

@@ -1,0 +1,245 @@
+{
+  "name": "Carte stages CIEL — Grist → Forge (republication)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "a1",
+      "name": "Toutes les 10 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://grist.numerique.gouv.fr/o/docs/api/docs/hgpAgc6sSBWgFshGMkKA22",
+        "options": {}
+      },
+      "id": "a2",
+      "name": "Grist — infos document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Compare la date de dernière modification du document Grist avec celle déjà vue.\n// Première exécution : on mémorise sans déclencher.\nconst store = $getWorkflowStaticData('global');\nconst updatedAt = $json.updatedAt || '';\nconst previous = store.gristUpdatedAt || '';\nstore.gristUpdatedAt = updatedAt;\nreturn [{ json: { updatedAt, previous, changed: Boolean(previous) && updatedAt !== previous } }];"
+      },
+      "id": "a3",
+      "name": "Modifié depuis la dernière fois ?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.changed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a4",
+      "name": "Si modifié",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        660,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "carte-ciel-maj",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "b1",
+      "name": "Webhook — mettre à jour maintenant",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        440,
+        220
+      ],
+      "webhookId": "carte-ciel-maj",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REMPLACER_PAR_ID_CREDENTIAL",
+          "name": "Carte CIEL webhook"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://forge.apps.education.fr/api/v4/projects/17968/trigger/pipeline?ref=main",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "options": {}
+      },
+      "id": "c1",
+      "name": "Forge — lancer le pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        0
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "REMPLACER_PAR_ID_CREDENTIAL",
+          "name": "Forge — jeton de déclenchement"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, pipeline: $json.web_url || null }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "c2",
+      "name": "Réponse",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://forge.apps.education.fr/api/v4/projects/17968/trigger/pipeline?ref=main",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "options": {}
+      },
+      "id": "c3",
+      "name": "Forge — lancer le pipeline (webhook)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        220
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "REMPLACER_PAR_ID_CREDENTIAL",
+          "name": "Forge — jeton de déclenchement"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Toutes les 10 min": {
+      "main": [
+        [
+          {
+            "node": "Grist — infos document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grist — infos document": {
+      "main": [
+        [
+          {
+            "node": "Modifié depuis la dernière fois ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Modifié depuis la dernière fois ?": {
+      "main": [
+        [
+          {
+            "node": "Si modifié",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Si modifié": {
+      "main": [
+        [
+          {
+            "node": "Forge — lancer le pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Webhook — mettre à jour maintenant": {
+      "main": [
+        [
+          {
+            "node": "Forge — lancer le pipeline (webhook)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Forge — lancer le pipeline (webhook)": {
+      "main": [
+        [
+          {
+            "node": "Réponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

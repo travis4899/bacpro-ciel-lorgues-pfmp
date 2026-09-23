@@ -1,0 +1,4 @@
+SIRET,Nom,Enseigne,Adresse,Code postal,Commune,Téléphone,Email,Site web,Secteur,Pertinence,Stage réalisé,Commentaire,Masquer,Latitude,Longitude
+42473713800059,KING TONY EUROPE,,,,,,,,Siège / DSI,Moyenne,"Stage réalisé : site web, scripts Python (classement des photos)",,,,
+77571559200017,OCEALIA,,,,,,,,Siège / DSI,Moyenne,Stage réalisé : DSI Ocealia,,,,
+,Exemple : boutique ajoutée à la main,Info Dépannage,1 rue de l'Exemple,16700,Ruffec,05 45 00 00 00,,,Dépannage,Forte,,Accueille des stagiaires de 3e,true,,

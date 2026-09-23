@@ -1,0 +1,23 @@
+# Publication de la carte sur GitLab Pages (La Forge des communs numériques éducatifs).
+#
+# - À chaque push sur la branche par défaut : publication de public/.
+# - Pipeline planifié (Build > Pipeline schedules, ex. chaque nuit) : relit le tableau Grist
+#   puis republie. Variables CI/CD à créer (Settings > CI/CD > Variables) :
+#     GRIST_DOC_ID   identifiant du document Grist
+#     GRIST_API_KEY  clé API Grist (cocher « Masked »), inutile si le document est public en lecture
+#     GRIST_TABLE    (facultatif) nom de la table, défaut « Entreprises »
+# n8n (n8n/carte-ciel-grist-vers-forge.json) déclenche aussi ce pipeline dès que Grist est modifié.
+# Sans GRIST_DOC_ID, l'étape Grist est ignorée et le grist.json du dépôt est publié tel quel.
+pages:
+  stage: deploy
+  image: python:3.12-alpine
+  script:
+    - python3 scripts/grist_sync.py
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"   # planification nocturne (secours)
+    - if: $CI_PIPELINE_SOURCE == "trigger"    # déclenché par n8n (jeton de déclenchement)
+    - if: $CI_PIPELINE_SOURCE == "api"        # déclenché par n8n (jeton d'accès GitLab)
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

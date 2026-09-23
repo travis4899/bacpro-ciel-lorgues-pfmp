@@ -1,0 +1,300 @@
+/* Carte des stages CIEL — application (Leaflet + MarkerCluster, sans autre dépendance).
+   Données chargées depuis data/*.json, produites par scripts/construire.py. */
+(function () {
+  "use strict";
+
+  // ------------------------------------------------------------ constantes
+  const REL = { 3: "Forte", 2: "Moyenne", 1: "À vérifier" };
+  const DEPS = { "16": "Charente", "17": "Charente-Maritime", "79": "Deux-Sèvres", "86": "Vienne" };
+  const SIZES = { "1-9": "1 à 9", "10-49": "10 à 49", "50-249": "50 à 249", "250+": "250 et +", "0": "0 salarié", "?": "Non renseignée" };
+  const VILLE_LYCEE = "Ruffec";          // proposée en tête de la liste « Près de chez moi »
+  const PAGE = 80;                        // lignes affichées par lot dans la liste
+  const STORE_FILTERS = "ciel-filters-v3", STORE_FAVS = "ciel-favs";
+
+  // ------------------------------------------------------------ utilitaires
+  const $ = (id) => document.getElementById(id);
+  const norm = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const css = getComputedStyle(document.documentElement);
+  const token = (name) => css.getPropertyValue(name).trim();
+  const col = (cat) => token("--c-" + cat) || "#888";
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* stockage indisponible */ } },
+  };
+  const sizeOf = (t) => t === "00" ? "0" : ["01", "02", "03"].includes(t) ? "1-9" : ["11", "12"].includes(t) ? "10-49"
+    : ["21", "22", "31"].includes(t) ? "50-249" : /^\d\d$/.test(t) ? "250+" : "?";
+  function dist(a, b, c, d) { const p = Math.PI / 180, x = (d - b) * p * Math.cos((a + c) / 2 * p), y = (c - a) * p; return Math.sqrt(x * x + y * y) * 6371; }
+  function toast(msg) { const t = document.createElement("div"); t.className = "toast"; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 1800); }
+  function copy(txt, msg) {
+    const fallback = () => {
+      const ta = document.createElement("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); toast(msg); } catch (e) { toast("Sélectionne le texte pour le copier"); }
+      ta.remove();
+    };
+    try { navigator.clipboard.writeText(txt).then(() => toast(msg), fallback); } catch (e) { fallback(); }
+  }
+  const getJSON = (p) => fetch(p).then((r) => { if (!r.ok) throw new Error(p + " : " + r.status); return r.json(); });
+
+  // Fenêtre « À propos » (indépendante du chargement des données)
+  const about = $("about");
+  $("about-open").addEventListener("click", () => { if (about.showModal) about.showModal(); else about.setAttribute("open", ""); });
+  about.addEventListener("click", (e) => { if (e.target === about) about.close(); });
+
+  // grist.json est facultatif (synchronisation avec le tableau Grist de l'enseignant, voir scripts/grist_sync.py)
+  const optional = (p) => fetch(p).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  Promise.all(["data/lieux.json", "data/meta.json", "data/naf.json", "data/departements.json", "data/villes.json"].map(getJSON).concat(optional("data/grist.json")))
+    .then(start)
+    .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Ouvre la carte depuis un serveur web (GitLab Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
+
+  function start([LIEUX, META, NAF, BASE, TOWNS, GRIST]) {
+    const CATS = META.categories, SRCS = META.sources, TR = META.tranches;
+    $("maj").textContent = new Date(META.date).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
+
+    // ---------------------------------------------------------- données
+    const F = Object.fromEntries(LIEUX.champs.map((c, i) => [c, i]));
+    let base = LIEUX.lieux.map((a) => { const r = {}; for (const k in F) r[k] = a[F[k]]; return r; });
+    base = mergeGrist(base, GRIST && GRIST.lignes);
+    const rows = base.map((r, i) => {
+      r.i = i;
+      r.dep = String(r.cp).slice(0, 2); r.size = sizeOf(r.t); r.rel = +r.rel;
+      r.title = r.ens || r.nom; r.osm = /^(osm|grist)/.test(String(r.siret));
+      r.label = NAF[r.naf] || r.osm_type || CATS[r.cat];
+      r.hasContact = !!(r.tel || r.mail);
+      r.txt = norm([r.nom, r.ens, r.ville, r.cp, r.naf, String(r.naf).replace(".", ""), r.label, CATS[r.cat]].join(" "));
+      return r;
+    });
+    let favs = new Set(store.get(STORE_FAVS, []));
+
+    // Corrections / ajouts saisis dans Grist : priorité sur les données automatiques
+    function mergeGrist(list, lignes) {
+      if (!Array.isArray(lignes) || !lignes.length) return list;
+      const bySiret = new Map(list.map((r) => [String(r.siret), r]));
+      const hide = new Set();
+      const CHAMPS = ["nom", "ens", "adr", "cp", "ville", "tel", "mail", "web", "cat", "rel", "stage", "note", "lat", "lon"];
+      for (const g of lignes) {
+        const r = g.siret && bySiret.get(g.siret);
+        if (g.masquer) { if (r) hide.add(r); continue; }
+        if (r) {
+          for (const k of CHAMPS) if (g[k] != null && g[k] !== "" && !(k === "cat" && !CATS[g[k]])) r[k] = g[k];
+          if (g.tel || g.mail || g.web) r.csrc = "Grist (enseignant)";
+          r.grist = true;
+        } else if (typeof g.lat === "number" && typeof g.lon === "number") {
+          list.push({ siret: g.siret || "grist-" + g.grist_id, nom: g.nom || "", ens: g.ens || "", adr: g.adr || "", cp: g.cp || "",
+            ville: g.ville || "", naf: "", t: "", tu: "", cat: CATS[g.cat] ? g.cat : "autre", src: "grist", siege: 0, lat: g.lat, lon: g.lon,
+            approx: g.approx ? 1 : 0, rel: g.rel || 2, tel: g.tel || "", mail: g.mail || "", web: g.web || "",
+            csrc: g.tel || g.mail || g.web ? "Grist (enseignant)" : "", stage: g.stage || "", note: g.note || "", osm_type: g.activite || "", grist: true });
+        }
+      }
+      return list.filter((r) => !hide.has(r));
+    }
+
+    // ---------------------------------------------------------- état des filtres
+    const state = { rel: new Set(["3", "2"]), dep: new Set(Object.keys(DEPS)), cat: new Set(Object.keys(CATS)),
+      size: new Set(Object.keys(SIZES)), src: new Set(Object.keys(SRCS)), naf: "", q: "", town: "", km: 30,
+      onlyfav: false, contact: false, stage: false };
+    const saved = store.get(STORE_FILTERS, null);
+    if (saved) {
+      for (const k of ["rel", "dep", "cat", "size", "src"]) if (Array.isArray(saved[k])) state[k] = new Set(saved[k]);
+      // secteurs / origines apparus depuis la dernière visite : cochés par défaut
+      for (const [k, all] of [["cat", CATS], ["src", SRCS]]) for (const v of Object.keys(all)) if (!(saved.known?.[k] || []).includes(v)) state[k].add(v);
+      for (const k of ["naf", "town", "km", "contact", "stage"]) if (saved[k] != null) state[k] = saved[k];
+    }
+    const saveState = () => store.set(STORE_FILTERS, { rel: [...state.rel], dep: [...state.dep], cat: [...state.cat],
+      size: [...state.size], src: [...state.src], naf: state.naf, town: state.town, km: state.km, contact: state.contact, stage: state.stage,
+      known: { cat: Object.keys(CATS), src: Object.keys(SRCS) } });
+
+    // ---------------------------------------------------------- filtres (UI)
+    function counts(key) { const c = {}; rows.forEach((r) => { const v = String(r[key]); c[v] = (c[v] || 0) + 1; }); return c; }
+    function chips(id, key, entries, dotFn) {
+      const el = $(id), c = counts(key);
+      el.innerHTML = entries.filter(([k]) => c[k]).map(([k, l]) => `<label class="chip ${key === "rel" ? "relchip" : ""}">
+        <input type="checkbox" value="${k}" ${state[key].has(k) ? "checked" : ""}>${dotFn ? dotFn(k) : ""}${esc(l)} <span class="n">${c[k]}</span></label>`).join("");
+      el.addEventListener("change", (e) => { const v = e.target.value; e.target.checked ? state[key].add(v) : state[key].delete(v); apply(); });
+    }
+    chips("f-rel", "rel", [["3", REL[3]], ["2", REL[2]], ["1", REL[1]]],
+      (k) => `<span class="bar" style="color:var(${k == 3 ? "--forte" : k == 2 ? "--moyenne" : "--verif"})">${[1, 2, 3].map((n) => `<i class="${n <= k ? "on" : ""}"></i>`).join("")}</span>`);
+    chips("f-dep", "dep", Object.entries(DEPS).map(([k, v]) => [k, k + " · " + v]));
+    chips("f-cat", "cat", Object.entries(CATS), (k) => `<span class="dot" style="background:${col(k)}"></span>`);
+    chips("f-size", "size", Object.entries(SIZES));
+    chips("f-src", "src", Object.entries(SRCS));
+    function setAllCats(on) { state.cat = on ? new Set(Object.keys(CATS)) : new Set(); document.querySelectorAll("#f-cat input").forEach((i) => (i.checked = on)); apply(); }
+    $("cat-all").onclick = () => setAllCats(true);
+    $("cat-none").onclick = () => setAllCats(false);
+
+    $("n-contact").textContent = rows.filter((r) => r.hasContact).length;
+    $("n-stage").textContent = rows.filter((r) => r.stage).length;
+    $("withcontact").checked = state.contact; $("withstage").checked = state.stage;
+    $("withcontact").onchange = (e) => { state.contact = e.target.checked; apply(); };
+    $("withstage").onchange = (e) => { state.stage = e.target.checked; apply(); };
+
+    const nafSel = $("naf-sel"), nafC = counts("naf");
+    Object.keys(nafC).filter(Boolean).sort().forEach((c) => nafSel.add(new Option(`${c} · ${NAF[c] || ""} (${nafC[c]})`, c)));
+    nafSel.value = state.naf; nafSel.onchange = () => { state.naf = nafSel.value; apply(); };
+
+    const townSel = $("town");
+    const lycee = TOWNS.find((t) => t[0] === VILLE_LYCEE);
+    if (lycee) townSel.add(new Option(`${VILLE_LYCEE} (lycée)`, VILLE_LYCEE));
+    [...TOWNS].sort((a, b) => a[0].localeCompare(b[0], "fr")).forEach((t) => { if (t[0] !== VILLE_LYCEE) townSel.add(new Option(t[0], t[0])); });
+    townSel.value = state.town;
+    const km = $("km"), kmo = $("kmo"); km.value = state.km; kmo.textContent = state.km + " km";
+    townSel.onchange = () => { state.town = townSel.value; apply(true); };
+    km.oninput = () => { state.km = +km.value; kmo.textContent = km.value + " km"; apply(); };
+    km.onchange = () => apply(true);
+    let qt; $("q").addEventListener("input", (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value; apply(); }, 150); });
+    $("onlyfav").onchange = (e) => { state.onlyfav = e.target.checked; apply(); };
+    $("reset").onclick = () => { try { localStorage.removeItem(STORE_FILTERS); } catch (e) { /* rien */ } location.reload(); };
+
+    // ---------------------------------------------------------- carte
+    const map = L.map("map", { preferCanvas: true, zoomSnap: 0.5, minZoom: 7, maxZoom: 19 }).setView([46.1, -0.2], 8);
+    map.attributionControl.setPrefix(false);
+    // Fond vectoriel embarqué : toujours présent, visible seul si les tuiles OSM ne se chargent pas (hors ligne…)
+    const baseLayer = L.geoJSON(BASE, { interactive: false, style: (f) => {
+      const ours = f.properties.code in DEPS;
+      return { color: token("--dep-line"), weight: ours ? 1.6 : 0.8, fillColor: token(ours ? "--land-in" : "--land"), fillOpacity: 1, opacity: ours ? 1 : 0.5 };
+    } }).addTo(map);
+    const townLayer = L.layerGroup().addTo(map);
+    const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">contributeurs OpenStreetMap</a>' });
+    let tileErr = 0, tileOk = 0;
+    tiles.on("tileerror", () => { if (++tileErr > 3 && !tileOk) map.removeLayer(tiles); });
+    tiles.on("tileload", () => { if (!tileOk++) { baseLayer.setStyle({ fillOpacity: 0, weight: 2, opacity: 0.7 }); townLayer.remove(); depLbl.remove(); } });
+    tiles.addTo(map);
+    const depLbl = L.layerGroup([[45.72, 0.2, "Charente"], [45.83, -0.6, "Charente-Maritime"], [46.5, -0.35, "Deux-Sèvres"], [46.55, 0.55, "Vienne"]]
+      .map(([a, b, n]) => L.marker([a, b], { interactive: false, keyboard: false, icon: L.divIcon({ className: "dep-lbl", html: n, iconSize: null }) })));
+    function drawTowns() {
+      if (tileOk) return;
+      townLayer.clearLayers(); const z = map.getZoom(); const min = z < 8.5 ? 25000 : z < 9.5 ? 9000 : z < 10.5 ? 4000 : 2500;
+      TOWNS.filter((t) => t[3] >= min).forEach((t) => L.marker([t[1], t[2]], { interactive: false, keyboard: false,
+        icon: L.divIcon({ className: "town-lbl" + (t[3] > 40000 ? " big" : ""), html: esc(t[0]), iconSize: null, iconAnchor: [-4, 8] }) }).addTo(townLayer));
+    }
+    map.on("zoomend", () => { drawTowns(); if (!tileOk) map.getZoom() < 8.5 ? depLbl.addTo(map) : depLbl.remove(); });
+    drawTowns(); depLbl.addTo(map);
+
+    const cluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: (z) => (z < 10 ? 50 : 35), disableClusteringAtZoom: 14,
+      spiderfyOnMaxZoom: true, chunkedLoading: true,
+      iconCreateFunction: (c) => { const n = c.getChildCount(); const s = n < 10 ? 28 : n < 100 ? 34 : n < 500 ? 40 : 46;
+        return L.divIcon({ html: `<div class="clu" style="width:${s}px;height:${s}px">${n}</div>`, className: "", iconSize: [s, s] }); } });
+    map.addLayer(cluster);
+    const radius = { 3: 8, 2: 6, 1: 4.5 };
+    rows.forEach((r) => {
+      r.m = L.circleMarker([r.lat, r.lon], r.stage
+        ? { radius: 10, color: token("--stage"), weight: 3, fillColor: col(r.cat), fillOpacity: 1 }
+        : { radius: radius[r.rel], color: r.rel == 3 ? token("--ink") : col(r.cat), weight: r.rel == 3 ? 1.5 : 1, fillColor: col(r.cat), fillOpacity: r.rel == 1 ? 0.55 : 0.9 });
+      r.m.bindPopup(() => popup(r), { maxWidth: 330 });
+      r.m.on("popupopen", () => highlight(r));
+    });
+    let townCircle = null;
+
+    // ---------------------------------------------------------- fiche (popup)
+    function contactBlock(r) {
+      if (!r.hasContact && !r.web) return `<div class="nocontact">Pas de contact trouvé automatiquement : utilise les recherches ci-dessous.</div>`;
+      const line = (label, href, val) => `<div class="ln"><span class="src">${label}</span><a href="${href}" ${href.startsWith("http") ? 'target="_blank" rel="noopener"' : ""}>${esc(val)}</a>
+        <button type="button" class="cp" data-copytxt="${esc(val)}">Copier</button></div>`;
+      return `<div class="contact">
+        ${r.tel ? line("Tél.", "tel:" + r.tel.replace(/\s/g, ""), r.tel) : ""}
+        ${r.mail ? line("E-mail", "mailto:" + r.mail, r.mail) : ""}
+        ${r.web ? line("Site", r.web, r.web.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")) : ""}
+        ${r.csrc ? `<div class="src">Source : ${esc(r.csrc.split("|").join(", "))}</div>` : ""}</div>`;
+    }
+    function popup(r) {
+      const q = encodeURIComponent(`${r.title} ${r.ville}`), fav = favs.has(r.siret);
+      return `<div class="pop"><h3>${esc(r.title)}</h3>${r.ens ? `<div class="ens">${esc(r.nom)}</div>` : ""}
+      ${r.stage ? `<div class="stage">★ ${esc(r.stage)}</div>` : ""}
+      <div class="tags"><span class="tag" style="border-color:${col(r.cat)}">${esc(CATS[r.cat])}</span><span class="tag">Pertinence : ${REL[r.rel]}</span>${r.siege == 1 ? '<span class="tag">Siège</span>' : ""}</div>
+      ${r.note ? `<div class="note">${esc(r.note)}</div>` : ""}
+      ${contactBlock(r)}
+      <dl><dt>Activité</dt><dd>${esc(r.label)}</dd>
+      <dt>Adresse</dt><dd>${esc(r.adr)}<br>${esc(r.cp)} ${esc(r.ville)}</dd>
+      <dt>Salariés</dt><dd>${esc(TR[r.t] || "non renseigné")} sur ce site${r.tu && r.tu !== r.t ? `<br>${esc(TR[r.tu] || "?")} dans l'entreprise` : ""}</dd>
+      ${r.osm ? "" : `<dt>SIRET</dt><dd class="mono">${esc(r.siret)}</dd>`}</dl>
+      ${r.approx == 1 ? '<div class="warn">Position approximative (centre de la commune ou de la rue)</div>' : ""}
+      <div class="links">${r.osm ? "" : `<a class="main" href="https://annuaire-entreprises.data.gouv.fr/etablissement/${r.siret}" target="_blank" rel="noopener">Fiche officielle</a>`}
+      <a href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">Google Maps</a>
+      <a href="https://www.pagesjaunes.fr/annuaire/chercherlespros?quoiqui=${encodeURIComponent(r.title)}&ou=${encodeURIComponent(r.ville)}" target="_blank" rel="noopener">PagesJaunes</a>
+      <button type="button" data-copy="${r.i}">Copier la fiche</button>
+      <button type="button" data-fav="${r.i}" aria-pressed="${fav}">${fav ? "★ Retirer" : "☆ Garder"}</button></div></div>`;
+    }
+    const ficheTexte = (r) => [r.title, r.ens ? r.nom : "", r.adr, `${r.cp} ${r.ville}`, r.tel && "Tél. " + r.tel, r.mail, r.web, r.osm ? "" : "SIRET " + r.siret].filter(Boolean).join("\n");
+    document.addEventListener("click", (e) => {
+      const t = e.target.closest("[data-copytxt]"); if (t) { copy(t.dataset.copytxt, "Copié"); return; }
+      const c = e.target.closest("[data-copy]"); if (c) { copy(ficheTexte(rows[+c.dataset.copy]), "Fiche copiée"); return; }
+      const f = e.target.closest("[data-fav]");
+      if (f) {
+        e.stopPropagation(); const r = rows[+f.dataset.fav]; toggleFav(r);
+        if (f.closest(".pop")) { const on = favs.has(r.siret); f.setAttribute("aria-pressed", on); f.textContent = on ? "★ Retirer" : "☆ Garder"; }
+      }
+    });
+    function toggleFav(r) {
+      favs.has(r.siret) ? favs.delete(r.siret) : favs.add(r.siret); store.set(STORE_FAVS, [...favs]); $("nfav").textContent = favs.size;
+      const b = document.querySelector(`.item[data-i="${r.i}"] .fav`); if (b) b.setAttribute("aria-pressed", favs.has(r.siret));
+      if (state.onlyfav) apply();
+    }
+    $("nfav").textContent = favs.size;
+    $("copyfav").onclick = () => {
+      const l = rows.filter((r) => favs.has(r.siret)); if (!l.length) { toast("Aucune ★ pour l'instant"); return; }
+      copy(l.map((r) => [r.title, `${r.adr}, ${r.cp} ${r.ville}`, r.tel, r.mail, r.label].filter(Boolean).join(" — ")).join("\n"), `${l.length} fiche(s) copiée(s)`);
+    };
+    $("copylist").onclick = () => {
+      if (!current.length) { toast("La liste est vide"); return; }
+      const h = ["Nom", "Enseigne", "Adresse", "Code postal", "Commune", "Téléphone", "E-mail", "Site web", "Code NAF", "Activité", "Salariés", "Pertinence", "SIRET"];
+      const lines = current.map((r) => [r.nom, r.ens, r.adr, r.cp, r.ville, r.tel, r.mail, r.web, r.naf, r.label, TR[r.t] || "", REL[r.rel], r.osm ? "" : r.siret]
+        .map((v) => String(v ?? "").replace(/[\t\n]/g, " ")).join("\t"));
+      copy([h.join("\t")].concat(lines).join("\n"), `${current.length} lignes copiées — colle-les dans un tableur`);
+    };
+
+    // ---------------------------------------------------------- filtrage + liste
+    let current = [], shown = 0;
+    const listEl = $("list");
+    const hint = (id, set, all) => { $(id).textContent = set.size === Object.keys(all).length ? "tout" : set.size + " / " + Object.keys(all).length; };
+    function apply(fit) {
+      const terms = norm(state.q).split(/\s+/).filter(Boolean);
+      const t = TOWNS.find((x) => x[0] === state.town);
+      current = rows.filter((r) => state.rel.has(String(r.rel)) && state.dep.has(r.dep) && state.cat.has(r.cat) && state.size.has(r.size)
+        && state.src.has(r.src) && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
+        && (!state.contact || r.hasContact) && (!state.stage || r.stage)
+        && terms.every((w) => r.txt.includes(w)) && (!t || (r.d = dist(t[1], t[2], r.lat, r.lon)) <= state.km));
+      current.sort(t ? (a, b) => a.d - b.d || b.rel - a.rel
+        : (a, b) => !!b.stage - !!a.stage || b.rel - a.rel || b.hasContact - a.hasContact || a.ville.localeCompare(b.ville, "fr") || a.title.localeCompare(b.title, "fr"));
+      $("nres").textContent = current.length.toLocaleString("fr-FR");
+      hint("h-rel", state.rel, REL); hint("h-dep", state.dep, DEPS); hint("h-cat", state.cat, CATS); hint("h-size", state.size, SIZES); hint("h-src", state.src, SRCS);
+      $("h-naf").textContent = state.naf || "tous";
+      $("h-contact").textContent = [state.contact && "avec contact", state.stage && "stages"].filter(Boolean).join(", ");
+      $("h-dist").textContent = t ? `${state.km} km autour de ${t[0]}` : "toutes distances";
+      cluster.clearLayers(); cluster.addLayers(current.map((r) => r.m));
+      if (townCircle) { map.removeLayer(townCircle); townCircle = null; }
+      if (t) {
+        townCircle = L.circle([t[1], t[2]], { radius: state.km * 1000, color: token("--accent"), weight: 1.5, fill: false, dashArray: "4 4", interactive: false }).addTo(map);
+        if (fit) map.fitBounds(townCircle.getBounds(), { padding: [20, 20] });
+      }
+      shown = 0; listEl.innerHTML = ""; renderMore(); saveState();
+    }
+    function renderMore() {
+      listEl.querySelector(".more")?.remove();
+      if (!current.length) { listEl.innerHTML = '<div class="empty">Aucun lieu ne correspond. Élargis la pertinence, le secteur ou le rayon.</div>'; return; }
+      const html = current.slice(shown, shown + PAGE).map((r) => `<div class="item" role="listitem" tabindex="0" data-i="${r.i}">
+        <span class="sw" style="background:${col(r.cat)}"></span>
+        <div class="t">${esc(r.title)}${r.ens ? ` <em>· ${esc(r.nom)}</em>` : ""}</div>
+        <button class="fav" type="button" data-fav="${r.i}" aria-pressed="${favs.has(r.siret)}" aria-label="Garder en favori"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1.5l1.9 4 4.3.5-3.2 3 .9 4.3L8 11.2 4.1 13.3l.9-4.3-3.2-3 4.3-.5z" fill="currentColor"/></svg></button>
+        <div class="m"><span>${esc(r.ville)} (${r.dep})</span><span>${esc(r.label)}</span><span>${REL[r.rel]}</span>
+          ${r.hasContact ? `<span class="ic" title="Contact disponible">${r.tel ? "☎" : ""}${r.mail ? "✉" : ""}</span>` : ""}
+          ${r.stage ? '<span class="stage">★ stage réalisé</span>' : ""}
+          ${r.d != null && state.town ? `<span class="d">${r.d.toFixed(1).replace(".", ",")} km</span>` : ""}</div>
+      </div>`).join("");
+      listEl.insertAdjacentHTML("beforeend", html); shown += PAGE;
+      if (shown < current.length) listEl.insertAdjacentHTML("beforeend", `<div class="more"><button type="button">Afficher ${Math.min(PAGE, current.length - shown)} de plus (${current.length - shown} restants)</button></div>`);
+    }
+    listEl.addEventListener("click", (e) => {
+      if (e.target.closest(".more button")) { renderMore(); return; }
+      if (e.target.closest(".fav")) return;
+      const it = e.target.closest(".item"); if (it) focusRow(rows[+it.dataset.i]);
+    });
+    listEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { const it = e.target.closest(".item"); if (it) focusRow(rows[+it.dataset.i]); } });
+    function focusRow(r) { cluster.zoomToShowLayer(r.m, () => r.m.openPopup()); if (innerWidth <= 760) document.querySelector(".mapwrap").scrollIntoView({ behavior: "smooth", block: "start" }); }
+    function highlight(r) {
+      document.querySelectorAll(".item.sel").forEach((x) => x.classList.remove("sel"));
+      const it = document.querySelector(`.item[data-i="${r.i}"]`); if (it) { it.classList.add("sel"); if (innerWidth > 760) it.scrollIntoView({ block: "nearest" }); }
+    }
+    apply(!!state.town);
+  }
+})();

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trouve ta voie PFMP</title>
+<meta name="description" content="Lieux de stage potentiels pour les élèves de bac pro CIEL — Charente, Charente-Maritime, Deux-Sèvres, Vienne.">
+<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="vendor/leaflet.markercluster/MarkerCluster.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="head">
+      <div class="brand">
+        <h1>Trouve ta voie PFMP<small>Lieux de stage bac pro CIEL · LP Louise Michel, Ruffec · 16 · 17 · 79 · 86</small></h1>
+        <div class="count" aria-live="polite"><b id="nres">…</b> lieux</div>
+      </div>
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="q" type="search" placeholder="Nom, ville, activité, code NAF (ex. réseau, Ruffec, 62.01)…" autocomplete="off" aria-label="Rechercher">
+      </div>
+    </div>
+    <div class="rest">
+      <div class="filters">
+        <details class="f" open><summary>Pertinence pour le CIEL <span class="hint" id="h-rel"></span></summary><div class="fbody" id="f-rel"></div></details>
+        <details class="f" open><summary>Département <span class="hint" id="h-dep"></span></summary><div class="fbody" id="f-dep"></div></details>
+        <details class="f" open><summary>Près de chez moi <span class="hint" id="h-dist">toutes distances</span></summary>
+          <div class="fbody">
+            <div class="row"><select id="town" aria-label="Ville de départ"><option value="">— Choisir une ville —</option></select></div>
+            <div class="row"><input type="range" id="km" min="5" max="100" step="5" value="30" aria-label="Rayon en km"><output id="kmo" for="km">30 km</output></div>
+          </div></details>
+        <details class="f"><summary>Secteur d'activité <span class="hint" id="h-cat"></span></summary><div class="fbody" id="f-cat"></div>
+          <div class="help help-tight"><button class="linkbtn" type="button" id="cat-all">Tout cocher</button> · <button class="linkbtn" type="button" id="cat-none">Tout décocher</button></div></details>
+        <details class="f"><summary>Contact &amp; stages <span class="hint" id="h-contact"></span></summary>
+          <div class="fbody">
+            <label class="chip"><input type="checkbox" id="withcontact"> Avec téléphone ou e-mail <span class="n" id="n-contact"></span></label>
+            <label class="chip"><input type="checkbox" id="withstage"> Stage déjà réalisé <span class="n" id="n-stage"></span></label>
+          </div></details>
+        <details class="f"><summary>Code NAF (activité précise) <span class="hint" id="h-naf">tous</span></summary>
+          <div class="fbody"><div class="row"><select id="naf-sel" aria-label="Code NAF"><option value="">Tous les codes NAF</option></select></div>
+          <div class="help help-flush">Ex. 62.01Z programmation, 62.02A conseil en systèmes informatiques, 26.12Z cartes électroniques, 42.22Z réseaux / fibre.</div></div></details>
+        <details class="f"><summary>Taille (salariés du site) <span class="hint" id="h-size"></span></summary><div class="fbody" id="f-size"></div></details>
+        <details class="f"><summary>Origine de la fiche <span class="hint" id="h-src"></span></summary><div class="fbody" id="f-src"></div></details>
+        <details class="f"><summary>Comment utiliser cette carte ?</summary>
+          <div class="help">
+            <p><b>Pertinence</b> : « Forte » = cœur de métier CIEL (informatique, cybersécurité, réseaux, télécoms, fibre, électronique, alarmes / vidéosurveillance, boutiques et dépannage informatique). « Moyenne » = structure où un poste informatique existe probablement : sièges d'entreprises et grands sites (service informatique / DSI), électriciens, grandes mairies, hôpitaux… « À vérifier » = piste peu probable (petite mairie, informaticien indépendant sans salarié ni vitrine).</p>
+            <p><b>Sièges &amp; grands sites</b> : ce ne sont pas des entreprises d'informatique, mais elles ont souvent un service informatique (site web, réseau, parc de PC). C'est là qu'on peut proposer un stage sur un vrai projet.</p>
+            <p>Clique sur un point ou une ligne pour voir la fiche : téléphone, e-mail et site quand on les a trouvés, sinon utilise les liens de recherche.</p>
+            <p>Les ★ restent dans ton navigateur uniquement. Vérifie toujours que l'entreprise existe encore avant d'appeler.</p>
+          </div></details>
+      </div>
+      <div class="tools">
+        <label><input type="checkbox" id="onlyfav"> Mes ★ (<span id="nfav">0</span>)</label>
+        <span><button class="linkbtn" type="button" id="copylist">Copier la liste (tableur)</button> · <button class="linkbtn" type="button" id="copyfav">Copier mes ★</button> · <button class="linkbtn" type="button" id="reset">Réinitialiser</button></span>
+      </div>
+      <div class="list" id="list" role="list"><div class="empty">Chargement des données…</div></div>
+      <footer class="foot">
+        <nav class="foot-links" aria-label="Liens du projet">
+          <a href="https://forge.apps.education.fr/bacprociel/lp-louise-michel-ruffec/Trouve_Ta_Voie_PFMP" target="_blank" rel="noopener">Dépôt</a>
+          <a href="https://forge.apps.education.fr/bacprociel/lp-louise-michel-ruffec/Trouve_Ta_Voie_PFMP/-/issues/new" target="_blank" rel="noopener">Signaler un bug</a>
+          <button type="button" class="linkbtn" id="about-open">À propos</button>
+        </nav>
+        <div>Données : Insee SIRENE, service-public.fr, © contributeurs <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> (ODbL), sites web des entreprises. Mise à jour : <span id="maj">—</span>.</div>
+      </footer>
+    </div>
+  </aside>
+  <main class="mapwrap">
+    <div id="map" aria-label="Carte des entreprises"></div>
+    <div class="legend" aria-hidden="true">
+      <b>Pertinence</b>
+      <span><i class="lg lg-3"></i> Forte</span>
+      <span><i class="lg lg-2"></i> Moyenne</span>
+      <span><i class="lg lg-1"></i> À vérifier</span>
+      <span><i class="lg lg-stage"></i> Stage déjà réalisé</span>
+      <span class="lg-note">Couleur = secteur</span>
+    </div>
+  </main>
+</div>
+<dialog id="about" class="about" aria-labelledby="about-title">
+  <form method="dialog">
+    <h2 id="about-title">À propos</h2>
+    <p><b>Trouve ta voie PFMP</b> aide les élèves de bac pro CIEL (Cybersécurité, Informatique et réseaux, Électronique)
+      du LP Louise Michel de Ruffec à trouver leurs lieux de période de formation en milieu professionnel,
+      dans la Charente, la Charente-Maritime, les Deux-Sèvres et la Vienne.</p>
+    <p>Les lieux sont classés par pertinence pour le CIEL : entreprises d'informatique, de réseaux et d'électronique,
+      boutiques de dépannage, mais aussi sièges et grands sites qui ont un service informatique.
+      L'enseignant complète et corrige la liste (stages réalisés, contacts) via un tableau Grist.</p>
+    <h3>Sources des données</h3>
+    <ul>
+      <li>Répertoire SIRENE de l'Insee, via l'API Recherche d'entreprises (Licence Ouverte)</li>
+      <li>Annuaire de l'administration, service-public.fr (Licence Ouverte)</li>
+      <li>© contributeurs OpenStreetMap (ODbL) : contacts, boutiques et fond de carte</li>
+      <li>Téléphones et e-mails publiés par les entreprises sur leur propre site web</li>
+    </ul>
+    <p>Aucun nom de dirigeant n'est affiché. Les données peuvent être incomplètes ou dépassées : vérifie avant d'appeler.
+      Une erreur, une demande de retrait ? <a href="https://forge.apps.education.fr/bacprociel/lp-louise-michel-ruffec/Trouve_Ta_Voie_PFMP/-/issues/new" target="_blank" rel="noopener">Ouvre un ticket</a>.</p>
+    <p class="about-tech">Logiciel libre : <a href="https://forge.apps.education.fr/bacprociel/lp-louise-michel-ruffec/Trouve_Ta_Voie_PFMP" target="_blank" rel="noopener">code source sur la Forge des communs numériques éducatifs</a>.
+      Code sous licence MIT, données sous licence ODbL.
+      Leaflet (BSD-2), Leaflet.markercluster (MIT), polices Bricolage Grotesque et IBM Plex (SIL OFL).</p>
+    <div class="about-actions"><button class="btn primary" value="close">Fermer</button></div>
+  </form>
+</dialog>
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/leaflet.markercluster/leaflet.markercluster.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
