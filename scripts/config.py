@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "sources"          # listes fournies par l'enseignant
 CACHE = ROOT / "cache"              # réponses d'API mises en cache (régénérables)
 PUBLIC = ROOT / "public"            # site statique publié (GitLab Pages)
-EXPORTS = ROOT / "exports"          # CSV pour tableur
+DONNEES = ROOT / "donnees"          # données automatiques (entrée de grist_push.py) + état du dernier envoi
 
 DEPARTEMENTS = ["16", "17", "79", "86"]
 

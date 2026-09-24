@@ -1,10 +1,13 @@
 #!/bin/sh
-# Met à jour les données de la carte.
-#   ./mettre-a-jour.sh               -> complète le cache puis reconstruit (rapide si le cache existe)
-#   ./mettre-a-jour.sh --rafraichir  -> retélécharge tout depuis les API (~30 min, à faire 1 fois par an)
+# Mise à jour annuelle des données automatiques, envoyées dans Grist sans écraser les modifications manuelles.
+#   ./mettre-a-jour.sh               -> complète le cache, reconstruit, montre ce qui changerait dans Grist
+#   ./mettre-a-jour.sh --envoyer     -> idem puis écrit dans Grist (clé dans ~/.grist_key)
+#   ./mettre-a-jour.sh --rafraichir  -> retélécharge tout depuis les API (~30 min)
 set -e
 cd "$(dirname "$0")/scripts"
-python3 collecte.py "$@"
+case " $* " in *" --rafraichir "*) python3 collecte.py --rafraichir ;; *) python3 collecte.py ;; esac
 python3 construire.py
-echo
-echo "Aperçu local : cd public && python3 -m http.server 8000  puis http://localhost:8000"
+case " $* " in
+  *" --envoyer "*) python3 grist_push.py && python3 grist_sync.py ;;
+  *) python3 grist_push.py --simulation; echo; echo "Pour écrire dans Grist : ./mettre-a-jour.sh --envoyer" ;;
+esac

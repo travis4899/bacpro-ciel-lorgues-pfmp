@@ -6,3 +6,5 @@ __pycache__/
 sources/Export_Portail_Data*.csv
 sources/*vrac*.txt
 sources/annuaire-des-entreprises-etablissements*.csv
+# Sauvegardes du tableau Grist faites avant chaque envoi (locales)
+donnees/sauvegardes/

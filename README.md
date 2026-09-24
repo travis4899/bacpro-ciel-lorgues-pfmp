@@ -17,10 +17,16 @@ Environ 8 800 entreprises et services, classés par pertinence pour le CIEL : en
 
 ## Pour l'enseignant
 
-- **Ajouter, corriger ou masquer une entreprise, ou noter un stage réalisé** : dans le tableau Grist.
-  La carte se met à jour toute seule (n8n, puis le pipeline de la Forge).
-- **Tout recalculer** (une fois par an) : `./mettre-a-jour.sh --rafraichir`. Il faut Python 3, sans rien à installer.
-- Détails (arborescence, Grist, n8n, sources, règles de classement) : [docs/MAINTENANCE.md](docs/MAINTENANCE.md).
+**Tout se modifie dans le tableau Grist** (table `Entreprises`, une ligne par lieu). Tu corriges la cellule directement :
+téléphone, e-mail, site, secteur, pertinence, « Stage réalisé », « Commentaire », ou tu coches « Masquer » pour retirer un lieu.
+Pour ajouter une entreprise, crée une ligne (le SIRET est facultatif, elle sera placée d'après son adresse).
+Pour retrouver un lieu, utilise Ctrl+F dans Grist avec son nom ou le SIRET affiché sur sa fiche.
+
+La carte se met à jour depuis Grist : pipeline de la Forge (bouton « Exécuter le pipeline », planification nocturne, ou n8n).
+
+Une fois par an, `./mettre-a-jour.sh --envoyer` recalcule les données automatiques et les fusionne dans Grist
+**sans écraser tes modifications**. Il faut Python 3 et la clé API Grist dans `~/.grist_key`.
+Détails : [docs/MAINTENANCE.md](docs/MAINTENANCE.md).
 
 ## Technique
 

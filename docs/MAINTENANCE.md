@@ -25,27 +25,28 @@ public/                 site publié (GitLab Pages)
         departements.json  fond de carte vectoriel (généré)
         villes.json        étiquettes des villes (généré)
         naf.json           libellés des codes NAF (généré)
-        grist.json         ajouts / corrections venant de Grist (généré par grist_sync.py)
+        lieux-stage-ciel.csv  export tableur (généré par grist_sync.py)
   fonts/                polices auto-hébergées (SIL OFL 1.1)
   vendor/               Leaflet 1.9.4 et Leaflet.markercluster 1.5.3 (licences incluses)
   img/                  favicon
 scripts/
   config.py             départements, codes NAF, mots-clés, règles — c'est ici qu'on règle tout
-  grist_sync.py         lit le tableau Grist -> public/data/grist.json (lancé chaque nuit par la CI)
+  grist_api.py          colonnes du tableau Grist et conversions
+  grist_push.py         envoie les données automatiques dans Grist (fusion sans écraser les modifications)
+  grist_sync.py         lit tout le tableau Grist -> public/data/lieux.json + CSV (lancé par la CI)
   sites_web.py          recherche vérifiée du site web des entreprises + lecture de leurs coordonnées
   naf_libelles.json     libellés courts des codes NAF (les autres viennent de la nomenclature officielle)
   collecte.py           étape 1 : téléchargements (mis en cache dans cache/)
-  construire.py         étape 2 : fusion, pertinence, contacts, géocodage -> public/data + exports/
+  construire.py         étape 2 : fusion, pertinence, contacts, géocodage -> donnees/lieux_auto.json + fichiers statiques du site
   api.py, l93.py        utilitaires (API avec limite de débit, conversion Lambert 93 -> GPS)
 sources/                listes fournies par l'enseignant (déposer les nouvelles ici)
-  stages_confirmes.csv  SIRET des lieux où un stage a eu lieu (badge ★) — ou directement dans Grist
 grist/modele_Entreprises.csv  structure du tableau Grist à importer
 n8n/                    workflow n8n : Grist modifié -> pipeline Forge relancé
-exports/                lieux-stage-ciel.csv (ouvrir avec LibreOffice / Excel, séparateur « ; »)
+donnees/                lieux_auto.json (sortie de construire.py), grist_dernier_envoi.json (état du dernier envoi)
 cache/                  réponses d'API (non versionné, régénérable)
 
 Les exports bruts de `sources/` (annuaire, INPI, liste vrac) contiennent des noms de dirigeants :
-ils sont exclus de Git (`.gitignore`) et restent dans Nextcloud, comme `cache/`. Seul `stages_confirmes.csv` est versionné.
+ils sont exclus de Git (`.gitignore`) et restent dans Nextcloud, comme `cache/`. 
 mettre-a-jour.sh        lance les deux étapes
 README.md               présentation courte du dépôt ; ce guide : docs/MAINTENANCE.md
 ```
@@ -66,34 +67,32 @@ Cas fréquents :
 - **Nouvelle liste d'entreprises** : déposer le fichier dans `sources/` (export CSV de
   l'annuaire des entreprises, export « Portail Data » INPI, ou copier-coller dans `liste vrac.txt`),
   puis `./mettre-a-jour.sh`.
-- **Un stage a eu lieu** : ajouter une ligne `siret;entreprise;note` dans `sources/stages_confirmes.csv`
-  (le SIRET est sur la fiche de l'entreprise dans la carte), puis `python3 scripts/construire.py`.
+- **Un stage a eu lieu** : remplir « Stage réalisé » dans la ligne Grist du lieu.
 - **Ajouter un code NAF** : l'ajouter dans `CODES_NAF` (`scripts/config.py`), et si besoin un libellé
   court dans `scripts/naf_libelles.json`, puis `./mettre-a-jour.sh`.
 - **Un contact faux / une demande de retrait** : dans Grist, une ligne avec le SIRET et le bon contact,
   ou *Masquer* coché (voir ci-dessous) — effectif dès la synchronisation suivante.
 
-## Tableau Grist (ajouts et corrections de l'enseignant)
+## Tableau Grist : la source unique de la carte
 
-La carte fusionne au chargement le fichier `public/data/grist.json`, produit par `scripts/grist_sync.py`
-à partir d'un tableau sur **grist.numerique.gouv.fr**. Grist a toujours le dernier mot sur les données automatiques.
+```
+construire.py ──> donnees/lieux_auto.json ──> grist_push.py ──> Grist « Entreprises » ──> grist_sync.py ──> public/data/lieux.json
+  (1 fois par an)                               (fusion, clé API)      (l'enseignant modifie ici)    (CI : push, nuit, n8n)
+```
 
-1. Créer un document Grist et importer `grist/modele_Entreprises.csv` dans une table nommée **Entreprises**
-   (mettre la colonne *SIRET* en type **Texte** pour garder les zéros initiaux).
-2. Une ligne par entreprise :
-   - **avec un SIRET déjà sur la carte** : seuls les champs remplis remplacent les valeurs automatiques
-     (téléphone, e-mail, site, secteur, pertinence, « Stage réalisé », commentaire) ;
-   - **Masquer** coché : le lieu disparaît de la carte ;
-   - **sans SIRET** (ou SIRET inconnu) : nouveau lieu, placé à partir de l'adresse
-     (ou de *Latitude* / *Longitude* si remplies).
-   - *Secteur* : un mot parmi Informatique, Cybersécurité, Réseaux, Électronique, Dépannage, Alarme,
-     Électricité, Vente, Siège / DSI, Collectivité, Hôpital, Bureau d'études… — *Pertinence* : Forte, Moyenne, À vérifier.
-3. Sur la Forge : *Settings > CI/CD > Variables* : `GRIST_DOC_ID` (dans l'URL du document) et `GRIST_API_KEY`
-   (Grist : *Profil > Clé API*, variable **masquée**). Puis *Build > Pipeline schedules* : un pipeline chaque nuit.
-   La carte publiée se met alors à jour toute seule depuis Grist.
-
-En local : `GRIST_DOC_ID=… GRIST_API_KEY=… python3 scripts/grist_sync.py`.
-La ligne d'exemple du modèle a *Masquer* coché et n'a pas de SIRET : elle est ignorée.
+- **Modifier un lieu** : directement dans sa ligne Grist. Colonnes modifiables : SIRET, Nom, Enseigne, Adresse, Code postal,
+  Commune, Téléphone, Email, Site web, Secteur, Pertinence, Stage réalisé, Commentaire, Masquer, Latitude, Longitude.
+  Les suivantes (Code NAF, Activité, Salariés, Siège, Origine, Source contact, Position approximative) sont informatives.
+- **Retirer** : cocher *Masquer*. **Ajouter** : nouvelle ligne (sans coordonnées, elle est placée d'après l'adresse).
+- **Stage réalisé** et **Commentaire** sont publiés sur le site : pas de noms d'élèves.
+- **Mise à jour annuelle** (`./mettre-a-jour.sh --envoyer`) : fusion cellule par cellule. Une cellule vide ou jamais modifiée
+  reçoit la nouvelle valeur ; une cellule modifiée à la main est conservée (comparaison avec `donnees/grist_dernier_envoi.json`).
+  Aucune ligne n'est supprimée : un lieu disparu du répertoire est signalé dans *Statut mise à jour auto* et n'est plus affiché
+  (vider la cellule pour le garder). Grist est sauvegardé dans `donnees/sauvegardes/` avant chaque envoi.
+  Toujours regarder d'abord la simulation : `python3 scripts/grist_push.py --simulation`.
+- **Clé API** : seulement pour `grist_push.py`, dans `~/.grist_key` (jamais dans le dépôt). La CI lit le document public sans clé.
+- **Garde-fous de `grist_sync.py`** : si Grist ne répond pas, si une colonne indispensable manque ou si le nombre de lieux
+  chute de plus de 20 %, le pipeline échoue et le site précédent reste en ligne (`--forcer` pour passer outre).
 
 ### Synchronisation immédiate avec n8n
 
@@ -108,9 +107,6 @@ La ligne d'exemple du modèle a *Masquer* coché et n'a pas de SIRET : elle est 
    **Forge — jeton de déclenchement** (Query Auth, nom `token`, valeur = jeton créé dans
    *Settings > CI/CD > Pipeline trigger tokens*), **Carte CIEL webhook** (Header Auth de ton choix).
 3. Activer le workflow. Le pipeline planifié de nuit reste utile en secours.
-
-Attention : `public/data/grist.json` est publié. Ne pas écrire dans Grist de noms d'élèves ni d'informations
-personnelles dans les colonnes *Stage réalisé* et *Commentaire* (ou n'utiliser que des mentions génériques).
 
 ## Comment les lieux sont choisis
 

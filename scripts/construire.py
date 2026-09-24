@@ -1,4 +1,6 @@
-"""Étape 2 — Fusion, classement, contacts, géocodage -> public/data/*.json et exports/lieux-stage-ciel.csv
+"""Étape 2 — Fusion, classement, contacts, géocodage -> donnees/lieux_auto.json (+ fichiers statiques du site)
+
+Étape suivante : python3 scripts/grist_push.py (envoi dans Grist, sans écraser les modifications manuelles).
 
     python3 scripts/construire.py            # utilise le cache ; visite les sites web pas encore visités
     python3 scripts/construire.py --sans-web # ne visite aucun site web (plus rapide)
@@ -15,7 +17,7 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 from api import UA
-from config import (ROOT, CACHE, CATEGORIES, CODES_NAF, DEPARTEMENTS, EMPLOYEUR, EXCLUS_GRANDES, EXPORTS, PUBLIC,
+from config import (ROOT, CACHE, CATEGORIES, CODES_NAF, DEPARTEMENTS, EMPLOYEUR, EXCLUS_GRANDES, DONNEES, PUBLIC,
                     SOURCES, SOURCES_LABELS, TRANCHES)
 from l93 import l93_to_wgs
 from collecte import blocs_vrac, sirens_inpi
@@ -482,19 +484,6 @@ def visites():
     return cache
 
 
-# ---------------------------------------------------------------- stages confirmés
-def confirmes():
-    f = SOURCES / "stages_confirmes.csv"
-    if not f.exists(): return
-    for x in csv.DictReader(open(f, encoding="utf-8-sig"), delimiter=";"):
-        s = (x.get("siret") or "").replace(" ", "")
-        if s in recs:
-            recs[s]["stage"] = clean(x.get("note")) or "Stage déjà réalisé"
-            stats["stages_confirmes"] += 1
-        elif s:
-            print("  ! stages_confirmes.csv : SIRET introuvable dans les données :", s)
-
-
 # ---------------------------------------------------------------- sorties
 def fond_de_carte():
     g = json.loads((CACHE / "geo" / "deps.geojson").read_text())
@@ -528,8 +517,11 @@ def ecrire():
                      r["src"], 1 if r["siege"] else 0, round(r["lat"], 5), round(r["lon"], 5), 1 if r["approx"] else 0,
                      r["rel"], r.get("tel", ""), r.get("mail", ""), r.get("web", ""),
                      "|".join(sorted(set(cs.values()))), r.get("stage", ""), r.get("osm_type", "")])
+    DONNEES.mkdir(exist_ok=True)
+    (DONNEES / "lieux_auto.json").write_text(json.dumps({"champs": champs, "lieux": rows, "naf": naf}, ensure_ascii=False,
+                                                        separators=(",", ":")), encoding="utf-8")
+    # fichiers statiques du site (les lieux eux-mêmes viennent de Grist : grist_sync.py)
     data = PUBLIC / "data"
-    (data / "lieux.json").write_text(json.dumps({"champs": champs, "lieux": rows}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     base, villes = fond_de_carte()
     (data / "departements.json").write_text(json.dumps(base, separators=(",", ":")), encoding="utf-8")
     (data / "villes.json").write_text(json.dumps(villes, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
@@ -537,20 +529,6 @@ def ecrire():
     (data / "meta.json").write_text(json.dumps({"categories": CATEGORIES, "sources": SOURCES_LABELS, "tranches": TRANCHES,
                                                 "date": __import__("datetime").date.today().isoformat()},
                                                ensure_ascii=False, indent=1), encoding="utf-8")
-    EXPORTS.mkdir(exist_ok=True)
-    with open(EXPORTS / "lieux-stage-ciel.csv", "w", newline="", encoding="utf-8-sig") as f:
-        w = csv.writer(f, delimiter=";")
-        w.writerow(["Pertinence", "Secteur", "Nom", "Enseigne", "Adresse", "Code postal", "Commune", "Département",
-                    "Téléphone", "E-mail", "Site web", "Source contact", "Code NAF", "Activité", "Salariés (site)",
-                    "Salariés (entreprise)", "Siège", "Stage déjà réalisé", "SIRET", "Origine", "Latitude", "Longitude", "Fiche officielle"])
-        for r in sorted(out, key=lambda r: (-r["rel"], r["cp"][:2], r["ville"])):
-            w.writerow([{3: "Forte", 2: "Moyenne", 1: "À vérifier"}[r["rel"]], CATEGORIES[r["cat"]], r["nom"], r["ens"],
-                        r["adr"], r["cp"], r["ville"], r["cp"][:2], r.get("tel", ""), r.get("mail", ""), r.get("web", ""),
-                        ", ".join(sorted(set(r.get("csrc", {}).values()))), r["naf"], naf.get(r["naf"], r.get("osm_type", "")),
-                        TRANCHES.get(r["t"], ""), TRANCHES.get(r["tu"], ""), "oui" if r["siege"] else "", r.get("stage", ""),
-                        "" if r["siret"].startswith("osm") else r["siret"], SOURCES_LABELS[r["src"]],
-                        round(r["lat"], 5), round(r["lon"], 5),
-                        "" if r["siret"].startswith("osm") else "https://annuaire-entreprises.data.gouv.fr/etablissement/" + r["siret"]])
     return out
 
 
@@ -559,7 +537,6 @@ if __name__ == "__main__":
     lire_annuaire(); lire_inpi(); lire_vrac(); lire_naf(); lire_mots_cles(); lire_grandes(); cybersecurite()
     print("Géocodage…"); geocoder()
     print("Contacts…"); contacts_service_public(); contacts_osm(); contacts_sites_web()
-    confirmes()
     for r in recs.values():
         r["rel"] = pertinence(r)
     out = ecrire()

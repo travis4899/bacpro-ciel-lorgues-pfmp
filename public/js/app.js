@@ -61,20 +61,18 @@
   }
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 
-  // grist.json est facultatif (synchronisation avec le tableau Grist de l'enseignant, voir scripts/grist_sync.py)
-  const optional = (p) => fetch(p).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  Promise.all(["data/lieux.json", "data/meta.json", "data/naf.json", "data/departements.json", "data/villes.json"].map(getJSON).concat(optional("data/grist.json")))
+  // lieux.json est produit à partir du tableau Grist par scripts/grist_sync.py
+  Promise.all(["data/lieux.json", "data/meta.json", "data/naf.json", "data/departements.json", "data/villes.json"].map(getJSON))
     .then(start)
     .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Ouvre la carte depuis un serveur web (GitLab Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
 
-  function start([LIEUX, META, NAF, BASE, TOWNS, GRIST]) {
+  function start([LIEUX, META, NAF, BASE, TOWNS]) {
     const CATS = META.categories, SRCS = META.sources, TR = META.tranches;
     $("maj").textContent = new Date(META.date).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
 
     // ---------------------------------------------------------- données
     const F = Object.fromEntries(LIEUX.champs.map((c, i) => [c, i]));
-    let base = LIEUX.lieux.map((a) => { const r = {}; for (const k in F) r[k] = a[F[k]]; return r; });
-    base = mergeGrist(base, GRIST && GRIST.lignes);
+    const base = LIEUX.lieux.map((a) => { const r = {}; for (const k in F) r[k] = a[F[k]]; return r; });
     const rows = base.map((r, i) => {
       r.i = i;
       r.dep = String(r.cp).slice(0, 2); r.size = sizeOf(r.t); r.rel = +r.rel;
@@ -85,29 +83,6 @@
       return r;
     });
     let favs = new Set(store.get(STORE_FAVS, []));
-
-    // Corrections / ajouts saisis dans Grist : priorité sur les données automatiques
-    function mergeGrist(list, lignes) {
-      if (!Array.isArray(lignes) || !lignes.length) return list;
-      const bySiret = new Map(list.map((r) => [String(r.siret), r]));
-      const hide = new Set();
-      const CHAMPS = ["nom", "ens", "adr", "cp", "ville", "tel", "mail", "web", "cat", "rel", "stage", "note", "lat", "lon"];
-      for (const g of lignes) {
-        const r = g.siret && bySiret.get(g.siret);
-        if (g.masquer) { if (r) hide.add(r); continue; }
-        if (r) {
-          for (const k of CHAMPS) if (g[k] != null && g[k] !== "" && !(k === "cat" && !CATS[g[k]])) r[k] = g[k];
-          if (g.tel || g.mail || g.web) r.csrc = "Grist (enseignant)";
-          r.grist = true;
-        } else if (typeof g.lat === "number" && typeof g.lon === "number") {
-          list.push({ siret: g.siret || "grist-" + g.grist_id, nom: g.nom || "", ens: g.ens || "", adr: g.adr || "", cp: g.cp || "",
-            ville: g.ville || "", naf: "", t: "", tu: "", cat: CATS[g.cat] ? g.cat : "autre", src: "grist", siege: 0, lat: g.lat, lon: g.lon,
-            approx: g.approx ? 1 : 0, rel: g.rel || 2, tel: g.tel || "", mail: g.mail || "", web: g.web || "",
-            csrc: g.tel || g.mail || g.web ? "Grist (enseignant)" : "", stage: g.stage || "", note: g.note || "", osm_type: g.activite || "", grist: true });
-        }
-      }
-      return list.filter((r) => !hide.has(r));
-    }
 
     // ---------------------------------------------------------- état des filtres
     const state = { rel: new Set(["3", "2"]), dep: new Set(Object.keys(DEPS)), cat: new Set(Object.keys(CATS)),
