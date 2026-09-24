@@ -19,7 +19,7 @@
   const SIZES = { "1-9": "1 à 9", "10-49": "10 à 49", "50-249": "50 à 249", "250+": "250 et +", "0": "0 salarié", "?": "Non renseignée" };
   const VILLE_LYCEE = "Ruffec";          // proposée en tête de la liste « Près de chez moi »
   const PAGE = 80;                        // lignes affichées par lot dans la liste
-  const STORE_FILTERS = "ciel-filters-v3", STORE_FAVS = "ciel-favs";
+  const STORE_FILTERS = "ciel-filters-v4", STORE_FAVS = "ciel-favs";
 
   // ------------------------------------------------------------ utilitaires
   const $ = (id) => document.getElementById(id);
@@ -77,7 +77,7 @@
     .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Ouvre la carte depuis un serveur web (GitLab Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
 
   function start([LIEUX, META, NAF, BASE, TOWNS]) {
-    const CATS = META.categories, SRCS = META.sources, TR = META.tranches;
+    const CATS = META.categories, TR = META.tranches;
     $("maj").textContent = new Date(META.date).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
 
     // ---------------------------------------------------------- données
@@ -96,19 +96,21 @@
     let favs = new Set(store.get(STORE_FAVS, []));
 
     // ---------------------------------------------------------- état des filtres
-    const state = { rel: new Set(["3", "2"]), dep: new Set(Object.keys(DEPS)), cat: new Set(Object.keys(CATS)),
-      size: new Set(Object.keys(SIZES)), src: new Set(Object.keys(SRCS)), naf: "", q: "", town: "", km: 30,
-      onlyfav: false, contact: false, stage: false, poles: new Set(), fam: new Set(), adeq: new Set(["4", "3", "2", "1", "0"]) };
+    // au premier lancement : pertinence forte, cœur du référentiel ou stage déjà réalisé, avec téléphone ou e-mail, tous les métiers
+    const DEF_REL = ["3"], DEF_ADEQ = ["4", "3"];
+    const state = { rel: new Set(DEF_REL), dep: new Set(Object.keys(DEPS)), cat: new Set(Object.keys(CATS)),
+      size: new Set(Object.keys(SIZES)), naf: "", q: "", town: "", km: 30,
+      onlyfav: false, contact: true, stage: false, poles: new Set(), fam: new Set(), adeq: new Set(DEF_ADEQ) };
     const saved = store.get(STORE_FILTERS, null);
     if (saved) {
-      for (const k of ["rel", "dep", "cat", "size", "src", "poles", "fam", "adeq"]) if (Array.isArray(saved[k])) state[k] = new Set(saved[k]);
-      // secteurs / origines apparus depuis la dernière visite : cochés par défaut
-      for (const [k, all] of [["cat", CATS], ["src", SRCS], ["dep", DEPS]]) for (const v of Object.keys(all)) if (!(saved.known?.[k] || []).includes(v)) state[k].add(v);
+      for (const k of ["rel", "dep", "cat", "size", "poles", "fam", "adeq"]) if (Array.isArray(saved[k])) state[k] = new Set(saved[k]);
+      // secteurs / départements apparus depuis la dernière visite : cochés par défaut
+      for (const [k, all] of [["cat", CATS], ["dep", DEPS]]) for (const v of Object.keys(all)) if (!(saved.known?.[k] || []).includes(v)) state[k].add(v);
       for (const k of ["naf", "town", "km", "contact", "stage"]) if (saved[k] != null) state[k] = saved[k];
     }
     const saveState = () => store.set(STORE_FILTERS, { rel: [...state.rel], dep: [...state.dep], cat: [...state.cat], poles: [...state.poles], fam: [...state.fam], adeq: [...state.adeq],
-      size: [...state.size], src: [...state.src], naf: state.naf, town: state.town, km: state.km, contact: state.contact, stage: state.stage,
-      known: { cat: Object.keys(CATS), src: Object.keys(SRCS), dep: Object.keys(DEPS) } });
+      size: [...state.size], naf: state.naf, town: state.town, km: state.km, contact: state.contact, stage: state.stage,
+      known: { cat: Object.keys(CATS), dep: Object.keys(DEPS) } });
 
     // ---------------------------------------------------------- filtres (UI)
     function counts(key) { const c = {}; rows.forEach((r) => { const v = String(r[key]); c[v] = (c[v] || 0) + 1; }); return c; }
@@ -125,7 +127,6 @@
       (k) => `<span class="bar" style="color:var(--accent)">${[1, 2, 3, 4].map((n) => `<i class="${n <= k ? "on" : ""}"></i>`).join("")}</span>`);
     chips("f-cat", "cat", Object.entries(CATS), (k) => `<span class="dot" style="background:${col(k)}"></span>`);
     chips("f-size", "size", Object.entries(SIZES));
-    chips("f-src", "src", Object.entries(SRCS));
     // Boutons rapides du bandeau : même état que le filtre « Secteur » du panneau.
     // Tout est coché -> un clic isole l'activité ; ensuite chaque clic ajoute / retire ; « Tout » réinitialise.
     const COURT = { info: "Informatique", cyber: "Cyber", tele: "Réseaux / fibre", elec: "Électronique", maint: "Dépannage",
@@ -302,7 +303,7 @@
       const terms = norm(state.q).split(/\s+/).filter(Boolean);
       const t = TOWNS.find((x) => x[0] === state.town);
       current = rows.filter((r) => state.rel.has(String(r.rel)) && state.dep.has(r.dep) && state.cat.has(r.cat) && state.size.has(r.size)
-        && state.src.has(r.src) && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
+        && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
         && (!state.contact || r.hasContact) && (!state.stage || r.stage) && state.adeq.has(String(r.adeq))
         && (!state.poles.size || [...state.poles].some((p) => r.poles.includes(p)))
         && (!state.fam.size || [...state.fam].some((f) => r.fam.includes(f)))
@@ -312,15 +313,16 @@
         : (a, b) => b.adeq - a.adeq || b.rel - a.rel || b.hasContact - a.hasContact || a.ville.localeCompare(b.ville, "fr") || a.title.localeCompare(b.title, "fr"));
       $("nres").textContent = current.length.toLocaleString("fr-FR");
       syncCats();
-      hint("h-rel", state.rel, REL); hint("h-adeq", state.adeq, ADEQ); hint("h-dep", state.dep, DEPS); hint("h-cat", state.cat, CATS); hint("h-size", state.size, SIZES); hint("h-src", state.src, SRCS);
+      hint("h-rel", state.rel, REL); hint("h-adeq", state.adeq, ADEQ); hint("h-dep", state.dep, DEPS); hint("h-cat", state.cat, CATS); hint("h-size", state.size, SIZES);
       $("h-naf").textContent = state.naf || "tous";
       $("h-contact").textContent = [state.contact && "avec contact", state.stage && "stages"].filter(Boolean).join(", ");
       $("h-dist").textContent = t ? `${state.km} km autour de ${t[0]}` : "toutes distances";
       $("sortinfo").textContent = t ? `· du plus proche au plus loin de ${t[0]}` : "· triés par lien avec le référentiel CIEL";
       const full = (set, all) => set.size === Object.keys(all).length;
-      const actifs = [!(state.rel.size === 2 && state.rel.has("3") && state.rel.has("2")), !full(state.dep, DEPS), !full(state.cat, CATS),
-        !full(state.size, SIZES), !full(state.src, SRCS), !!state.naf, !!t, state.contact, state.stage,
-        state.poles.size > 0, state.fam.size > 0, !full(state.adeq, ADEQ)].filter(Boolean).length;
+      const same = (set, def) => set.size === def.length && def.every((v) => set.has(v));
+      const actifs = [!same(state.rel, DEF_REL), !full(state.dep, DEPS), !full(state.cat, CATS),
+        !full(state.size, SIZES), !!state.naf, !!t, !state.contact, state.stage,
+        state.poles.size > 0, state.fam.size > 0, !same(state.adeq, DEF_ADEQ)].filter(Boolean).length;
       $("nactive").hidden = !actifs; $("nactive").textContent = actifs;
       cluster.clearLayers(); cluster.addLayers(current.map((r) => r.m));
       if (townCircle) { map.removeLayer(townCircle); townCircle = null; }
