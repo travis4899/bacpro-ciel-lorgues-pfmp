@@ -3,6 +3,7 @@
 Grist est la source unique de la carte :
   construire.py -> donnees/lieux_auto.json -> grist_push.py -> Grist -> grist_sync.py -> public/data/lieux.json
 """
+import http.cookiejar
 import json
 import os
 import re
@@ -64,6 +65,16 @@ def api_key():
     return k
 
 
+class _SansRedirection(urllib.request.HTTPRedirectHandler):
+    """Ne jamais suivre une redirection : une écriture (POST/PATCH) redirigée deviendrait une lecture silencieuse."""
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+# Cookies conservés : le pare-feu Imperva devant grist.numerique.gouv.fr en exige un après un afflux de requêtes
+_OUVREUR = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), _SansRedirection())
+
+
 def appel(method, chemin, data=None, key=None):
     url = f"{SERVER}/api/docs/{DOC}/{chemin}"
     headers = {"Accept": "application/json", "User-Agent": "trouve-ta-voie-pfmp/1.0"}
@@ -75,13 +86,13 @@ def appel(method, chemin, data=None, key=None):
         headers["Content-Type"] = "application/json"
     # grist.numerique.gouv.fr est protégé contre les rafales : trop de requêtes -> page HTML 403 / 302 « Loading ».
     # On attend alors de plus en plus longtemps avant de réessayer (jusqu'à ~15 min au total).
-    for essai, attente in enumerate((0, 30, 60, 120, 240, 480)):
+    for essai, attente in enumerate((0, 0, 30, 60, 120, 240, 480)):
         if attente:
-            print(f"    Grist limite les envois : nouvel essai dans {attente} s…", flush=True)
+            print(f"    Grist / pare-feu : nouvel essai dans {attente} s…", flush=True)
             time.sleep(attente)
         req = urllib.request.Request(url, data=body, headers=headers, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=120) as r:
+            with _OUVREUR.open(req, timeout=120) as r:
                 txt = r.read().decode()
             if txt.lstrip().startswith("<"):
                 continue                                  # page de la protection anti-rafale
