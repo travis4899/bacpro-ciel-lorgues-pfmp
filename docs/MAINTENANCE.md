@@ -34,6 +34,8 @@ scripts/
   grist_api.py          colonnes du tableau Grist et conversions
   grist_push.py         envoie les données automatiques dans Grist (fusion sans écraser les modifications)
   grist_sync.py         lit tout le tableau Grist -> public/data/lieux.json + CSV (lancé par la CI)
+  grist_completer.py    applique des propositions ponctuelles dans Grist (listes PFMP, listing)
+  referentiel.py        lien avec le référentiel CIEL (pôles E/R/D, activités) et périmètre métiers
   sites_web.py          recherche vérifiée du site web des entreprises + lecture de leurs coordonnées
   naf_libelles.json     libellés courts des codes NAF (les autres viennent de la nomenclature officielle)
   collecte.py           étape 1 : téléchargements (mis en cache dans cache/)
@@ -107,6 +109,33 @@ construire.py ──> donnees/lieux_auto.json ──> grist_push.py ──> Gris
    **Forge — jeton de déclenchement** (Query Auth, nom `token`, valeur = jeton créé dans
    *Settings > CI/CD > Pipeline trigger tokens*), **Carte CIEL webhook** (Header Auth de ton choix).
 3. Activer le workflow. Le pipeline planifié de nuit reste utile en secours.
+
+## Référentiel CIEL et périmètre métiers (`scripts/referentiel.py`)
+
+Calculés par `grist_sync.py` au moment de publier (rien n'est stocké dans Grist) :
+
+- **Lien CIEL (0 à 4)** d'après l'annexe II du référentiel (arrêté 2023) : 4 stage CIEL déjà réalisé, 3 cœur du référentiel,
+  2 activités possibles (service informatique, courants faibles…), 1 lien partiel, 0 hors référentiel.
+  Chaque fiche liste les activités accessibles : E1–E5 (électronique), R1–R5 (réseaux), D1–D3 (cyber & données).
+  La liste est triée par ce niveau.
+- **Périmètre métiers** : seuls les lieux rattachés à une famille sont publiés — Systèmes d'information & DSI,
+  Réseaux & télécoms, Courants faibles & sûreté, Électronique & bureau d'études, Cybersécurité. Les stages réalisés
+  et les ajouts manuels dans Grist sont toujours publiés. Les règles (codes NAF, mots-clés) sont en tête de
+  `referentiel.py` : c'est là qu'on élargit ou resserre le périmètre.
+
+## Listes PFMP du lycée (stages réalisés, listing)
+
+`scripts/grist_completer.py` applique dans Grist un fichier de propositions (ex. `donnees/propositions_pfmp.json`,
+construit à partir des listes de stagiaires, attestations et du listing entreprises) : cellules remplies seulement si
+elles sont vides, « Pertinence » passée à Forte seulement si personne ne l'a modifiée, ajouts sans doublon.
+```sh
+python3 scripts/grist_completer.py donnees/propositions_pfmp.json --simulation
+python3 scripts/grist_completer.py donnees/propositions_pfmp.json
+```
+**Données personnelles** : seules les informations d'entreprise vont dans Grist (public). Les tuteurs (nom, fonction,
+téléphone), les e-mails nominatifs et les portables restent dans des fichiers privés hors dépôt
+(`~/Nextcloud2/PFMP/sorties/*_PRIVE.csv`). Rien sur les élèves n'est extrait. « Stage réalisé » n'indique que le rôle
+du tuteur (ex. « PFMP CIEL réalisée (tuteur : service informatique) »).
 
 ## Comment les lieux sont choisis
 

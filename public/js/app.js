@@ -5,7 +5,17 @@
 
   // ------------------------------------------------------------ constantes
   const REL = { 3: "Forte", 2: "Moyenne", 1: "À vérifier" };
-  const DEPS = { "16": "Charente", "17": "Charente-Maritime", "79": "Deux-Sèvres", "86": "Vienne" };
+  const DEPS = { "16": "Charente", "17": "Charente-Maritime", "79": "Deux-Sèvres", "86": "Vienne", "HA": "Hors académie" };
+  // Référentiel du bac pro CIEL (annexe II) : pôles, activités et niveau de lien calculé par scripts/referentiel.py
+  const POLES = { E: "Électronique", R: "Réseaux", D: "Cyber & données" };
+  const ACTS = { E1: "Étude et conception de produits électroniques", E2: "Tests et essais", E3: "Production et assemblage d'ensembles électroniques",
+    E4: "Intégration matérielle et logicielle", E5: "Maintenance et réparation de produits électroniques", R1: "Accompagnement du client",
+    R2: "Installation et qualification", R3: "Exploitation et maintien en condition opérationnelle", R5: "Maintenance des réseaux informatiques",
+    D1: "Élaboration et appropriation d'un cahier des charges", D2: "Développement et validation de solutions logicielles", D3: "Gestion d'incidents" };
+  const FAMILLES = { SI: "Systèmes d'information & DSI", RT: "Réseaux & télécoms", CF: "Courants faibles & sûreté",
+    EL: "Électronique & bureau d'études", CY: "Cybersécurité" };
+  const FAM_COURT = { SI: "SI & DSI", RT: "Réseaux & télécoms", CF: "Courants faibles & sûreté", EL: "Électronique & BE", CY: "Cybersécurité" };
+  const ADEQ = { 4: "Stage CIEL déjà réalisé", 3: "Cœur du référentiel CIEL", 2: "Activités CIEL possibles", 1: "Lien partiel", 0: "Hors référentiel" };
   const SIZES = { "1-9": "1 à 9", "10-49": "10 à 49", "50-249": "50 à 249", "250+": "250 et +", "0": "0 salarié", "?": "Non renseignée" };
   const VILLE_LYCEE = "Ruffec";          // proposée en tête de la liste « Près de chez moi »
   const PAGE = 80;                        // lignes affichées par lot dans la liste
@@ -75,7 +85,8 @@
     const base = LIEUX.lieux.map((a) => { const r = {}; for (const k in F) r[k] = a[F[k]]; return r; });
     const rows = base.map((r, i) => {
       r.i = i;
-      r.dep = String(r.cp).slice(0, 2); r.size = sizeOf(r.t); r.rel = +r.rel;
+      const d2 = String(r.cp).slice(0, 2); r.dep = d2 in DEPS && d2 !== "HA" ? d2 : "HA";
+      r.size = sizeOf(r.t); r.rel = +r.rel; r.adeq = +r.adeq || 0; r.poles = r.poles || ""; r.acts = r.acts || ""; r.fam = r.fam || "";
       r.title = r.ens || r.nom; r.osm = /^(osm|grist)/.test(String(r.siret));
       r.label = NAF[r.naf] || r.osm_type || CATS[r.cat];
       r.hasContact = !!(r.tel || r.mail);
@@ -87,17 +98,17 @@
     // ---------------------------------------------------------- état des filtres
     const state = { rel: new Set(["3", "2"]), dep: new Set(Object.keys(DEPS)), cat: new Set(Object.keys(CATS)),
       size: new Set(Object.keys(SIZES)), src: new Set(Object.keys(SRCS)), naf: "", q: "", town: "", km: 30,
-      onlyfav: false, contact: false, stage: false };
+      onlyfav: false, contact: false, stage: false, poles: new Set(), fam: new Set(), adeq: new Set(["4", "3", "2", "1", "0"]) };
     const saved = store.get(STORE_FILTERS, null);
     if (saved) {
-      for (const k of ["rel", "dep", "cat", "size", "src"]) if (Array.isArray(saved[k])) state[k] = new Set(saved[k]);
+      for (const k of ["rel", "dep", "cat", "size", "src", "poles", "fam", "adeq"]) if (Array.isArray(saved[k])) state[k] = new Set(saved[k]);
       // secteurs / origines apparus depuis la dernière visite : cochés par défaut
-      for (const [k, all] of [["cat", CATS], ["src", SRCS]]) for (const v of Object.keys(all)) if (!(saved.known?.[k] || []).includes(v)) state[k].add(v);
+      for (const [k, all] of [["cat", CATS], ["src", SRCS], ["dep", DEPS]]) for (const v of Object.keys(all)) if (!(saved.known?.[k] || []).includes(v)) state[k].add(v);
       for (const k of ["naf", "town", "km", "contact", "stage"]) if (saved[k] != null) state[k] = saved[k];
     }
-    const saveState = () => store.set(STORE_FILTERS, { rel: [...state.rel], dep: [...state.dep], cat: [...state.cat],
+    const saveState = () => store.set(STORE_FILTERS, { rel: [...state.rel], dep: [...state.dep], cat: [...state.cat], poles: [...state.poles], fam: [...state.fam], adeq: [...state.adeq],
       size: [...state.size], src: [...state.src], naf: state.naf, town: state.town, km: state.km, contact: state.contact, stage: state.stage,
-      known: { cat: Object.keys(CATS), src: Object.keys(SRCS) } });
+      known: { cat: Object.keys(CATS), src: Object.keys(SRCS), dep: Object.keys(DEPS) } });
 
     // ---------------------------------------------------------- filtres (UI)
     function counts(key) { const c = {}; rows.forEach((r) => { const v = String(r[key]); c[v] = (c[v] || 0) + 1; }); return c; }
@@ -109,7 +120,9 @@
     }
     chips("f-rel", "rel", [["3", REL[3]], ["2", REL[2]], ["1", REL[1]]],
       (k) => `<span class="bar" style="color:var(${k == 3 ? "--forte" : k == 2 ? "--moyenne" : "--verif"})">${[1, 2, 3].map((n) => `<i class="${n <= k ? "on" : ""}"></i>`).join("")}</span>`);
-    chips("f-dep", "dep", Object.entries(DEPS).map(([k, v]) => [k, k + " · " + v]));
+    chips("f-dep", "dep", Object.entries(DEPS).map(([k, v]) => [k, k === "HA" ? v : k + " · " + v]));
+    chips("f-adeq", "adeq", [["4", ADEQ[4]], ["3", ADEQ[3]], ["2", ADEQ[2]], ["1", ADEQ[1]], ["0", ADEQ[0]]],
+      (k) => `<span class="bar" style="color:var(--accent)">${[1, 2, 3, 4].map((n) => `<i class="${n <= k ? "on" : ""}"></i>`).join("")}</span>`);
     chips("f-cat", "cat", Object.entries(CATS), (k) => `<span class="dot" style="background:${col(k)}"></span>`);
     chips("f-size", "size", Object.entries(SIZES));
     chips("f-src", "src", Object.entries(SRCS));
@@ -120,10 +133,15 @@
       public: "Collectivités", sante: "Santé", media: "Médias", sport: "Sport", autre: "Autres" };
     const catCount = counts("cat");
     const qcEl = $("quickcats");
-    qcEl.innerHTML = `<button type="button" class="qc qc-all" data-cat="*">Tout</button>` + Object.keys(COURT).filter((k) => CATS[k] && catCount[k])
-      .map((k) => `<button type="button" class="qc" data-cat="${k}" title="${esc(CATS[k])} (${catCount[k]})"><span class="dot" style="background:${col(k)}"></span>${esc(COURT[k])}</button>`).join("");
+    const famCount = {}; rows.forEach((r) => r.fam.split(" ").filter(Boolean).forEach((f) => (famCount[f] = (famCount[f] || 0) + 1)));
+    qcEl.innerHTML = `<button type="button" class="qc qc-all" data-fam="*">Tous les métiers</button>`
+      + Object.keys(FAMILLES).filter((k) => famCount[k]).map((k) => `<button type="button" class="qc" data-fam="${k}" title="${esc(FAMILLES[k])} (${famCount[k]})">${esc(FAM_COURT[k])}</button>`).join("")
+      + `<span class="qc-sep" aria-hidden="true"></span>`
+      + Object.entries(POLES).map(([k, v]) => `<button type="button" class="qc qp" data-pole="${k}" title="Pôle du référentiel CIEL"><span class="pole pole-${k}">${k}</span>${esc(v)}</button>`).join("");
     qcEl.addEventListener("click", (e) => {
       const b = e.target.closest(".qc"); if (!b) return;
+      if (b.dataset.pole) { const p = b.dataset.pole; state.poles.has(p) ? state.poles.delete(p) : state.poles.add(p); apply(); return; }
+      if (b.dataset.fam) { const f = b.dataset.fam; if (f === "*") state.fam.clear(); else state.fam.has(f) ? state.fam.delete(f) : state.fam.add(f); apply(); return; }
       const k = b.dataset.cat, all = Object.keys(CATS);
       if (k === "*") state.cat = new Set(all);
       else if (state.cat.size === all.length) state.cat = new Set([k]);
@@ -133,7 +151,8 @@
     function syncCats() {
       const all = state.cat.size === Object.keys(CATS).length;
       qcEl.classList.toggle("some", !all);
-      qcEl.querySelectorAll(".qc").forEach((b) => b.setAttribute("aria-pressed", b.dataset.cat === "*" ? all : !all && state.cat.has(b.dataset.cat)));
+      qcEl.querySelectorAll(".qc[data-fam]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.fam === "*" ? !state.fam.size : state.fam.has(b.dataset.fam)));
+      qcEl.querySelectorAll(".qp").forEach((b) => b.setAttribute("aria-pressed", state.poles.has(b.dataset.pole)));
       document.querySelectorAll("#f-cat input").forEach((i) => (i.checked = state.cat.has(i.value)));
     }
     function setAllCats(on) { state.cat = on ? new Set(Object.keys(CATS)) : new Set(); document.querySelectorAll("#f-cat input").forEach((i) => (i.checked = on)); apply(); }
@@ -221,11 +240,19 @@
         ${r.web ? line("Site", r.web, r.web.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "")) : ""}
         ${r.csrc ? `<div class="src">Source : ${esc(r.csrc.split("|").join(", "))}</div>` : ""}</div>`;
     }
+    function ciel(r) {
+      const acts = r.acts ? r.acts.split(" ") : [];
+      return `<div class="ciel"><div class="ciel-h"><span class="bar">${[1, 2, 3, 4].map((n) => `<i class="${n <= r.adeq ? "on" : ""}"></i>`).join("")}</span>
+        <b>${esc(ADEQ[r.adeq])}</b>${r.poles ? " · " + r.poles.split(" ").map((p) => `<span class="pole pole-${p}">${p}</span>${esc(POLES[p])}`).join(" ") : ""}</div>
+        ${r.fam ? `<div class="fams">${r.fam.split(" ").map((f) => `<span class="tag">${esc(FAMILLES[f])}</span>`).join("")}</div>` : ""}
+        ${acts.length ? `<ul>${acts.map((a) => `<li><span class="mono">${a}</span> ${esc(ACTS[a] || "")}</li>`).join("")}</ul>` : ""}</div>`;
+    }
     function popup(r) {
       const q = encodeURIComponent(`${r.title} ${r.ville}`), fav = favs.has(r.siret);
       return `<div class="pop"><h3>${esc(r.title)}</h3>${r.ens ? `<div class="ens">${esc(r.nom)}</div>` : ""}
       ${r.stage ? `<div class="stage">★ ${esc(r.stage)}</div>` : ""}
       <div class="tags"><span class="tag" style="border-color:${col(r.cat)}">${esc(CATS[r.cat])}</span><span class="tag">Pertinence : ${REL[r.rel]}</span>${r.siege == 1 ? '<span class="tag">Siège</span>' : ""}</div>
+      ${ciel(r)}
       ${r.note ? `<div class="note">${esc(r.note)}</div>` : ""}
       ${contactBlock(r)}
       <dl><dt>Activité</dt><dd>${esc(r.label)}</dd>
@@ -276,20 +303,24 @@
       const t = TOWNS.find((x) => x[0] === state.town);
       current = rows.filter((r) => state.rel.has(String(r.rel)) && state.dep.has(r.dep) && state.cat.has(r.cat) && state.size.has(r.size)
         && state.src.has(r.src) && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
-        && (!state.contact || r.hasContact) && (!state.stage || r.stage)
+        && (!state.contact || r.hasContact) && (!state.stage || r.stage) && state.adeq.has(String(r.adeq))
+        && (!state.poles.size || [...state.poles].some((p) => r.poles.includes(p)))
+        && (!state.fam.size || [...state.fam].some((f) => r.fam.includes(f)))
         && terms.every((w) => r.txt.includes(w)) && (!t || (r.d = dist(t[1], t[2], r.lat, r.lon)) <= state.km));
-      current.sort(t ? (a, b) => a.d - b.d || b.rel - a.rel
-        : (a, b) => !!b.stage - !!a.stage || b.rel - a.rel || b.hasContact - a.hasContact || a.ville.localeCompare(b.ville, "fr") || a.title.localeCompare(b.title, "fr"));
+      // tri : lien avec le référentiel CIEL (stages réalisés d'abord), puis pertinence, puis contact disponible
+      current.sort(t ? (a, b) => a.d - b.d || b.adeq - a.adeq
+        : (a, b) => b.adeq - a.adeq || b.rel - a.rel || b.hasContact - a.hasContact || a.ville.localeCompare(b.ville, "fr") || a.title.localeCompare(b.title, "fr"));
       $("nres").textContent = current.length.toLocaleString("fr-FR");
       syncCats();
-      hint("h-rel", state.rel, REL); hint("h-dep", state.dep, DEPS); hint("h-cat", state.cat, CATS); hint("h-size", state.size, SIZES); hint("h-src", state.src, SRCS);
+      hint("h-rel", state.rel, REL); hint("h-adeq", state.adeq, ADEQ); hint("h-dep", state.dep, DEPS); hint("h-cat", state.cat, CATS); hint("h-size", state.size, SIZES); hint("h-src", state.src, SRCS);
       $("h-naf").textContent = state.naf || "tous";
       $("h-contact").textContent = [state.contact && "avec contact", state.stage && "stages"].filter(Boolean).join(", ");
       $("h-dist").textContent = t ? `${state.km} km autour de ${t[0]}` : "toutes distances";
-      $("sortinfo").textContent = t ? `· du plus proche au plus loin de ${t[0]}` : "· triés par pertinence";
+      $("sortinfo").textContent = t ? `· du plus proche au plus loin de ${t[0]}` : "· triés par lien avec le référentiel CIEL";
       const full = (set, all) => set.size === Object.keys(all).length;
       const actifs = [!(state.rel.size === 2 && state.rel.has("3") && state.rel.has("2")), !full(state.dep, DEPS), !full(state.cat, CATS),
-        !full(state.size, SIZES), !full(state.src, SRCS), !!state.naf, !!t, state.contact, state.stage].filter(Boolean).length;
+        !full(state.size, SIZES), !full(state.src, SRCS), !!state.naf, !!t, state.contact, state.stage,
+        state.poles.size > 0, state.fam.size > 0, !full(state.adeq, ADEQ)].filter(Boolean).length;
       $("nactive").hidden = !actifs; $("nactive").textContent = actifs;
       cluster.clearLayers(); cluster.addLayers(current.map((r) => r.m));
       if (townCircle) { map.removeLayer(townCircle); townCircle = null; }
@@ -308,6 +339,7 @@
         <button class="fav" type="button" data-fav="${r.i}" aria-pressed="${favs.has(r.siret)}" aria-label="Garder en favori"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1.5l1.9 4 4.3.5-3.2 3 .9 4.3L8 11.2 4.1 13.3l.9-4.3-3.2-3 4.3-.5z" fill="currentColor"/></svg></button>
         <div class="m"><span>${esc(r.ville)} (${r.dep})</span><span>${esc(r.label)}</span><span>${REL[r.rel]}</span>
           ${r.hasContact ? `<span class="ic" title="Contact disponible">${r.tel ? "☎" : ""}${r.mail ? "✉" : ""}</span>` : ""}
+          ${r.poles ? `<span class="poles">${r.poles.split(" ").map((p) => `<span class="pole pole-${p}" title="${esc(POLES[p])}">${p}</span>`).join("")}</span>` : ""}
           ${r.stage ? '<span class="stage">★ stage réalisé</span>' : ""}
           ${r.d != null && state.town ? `<span class="d">${r.d.toFixed(1).replace(".", ",")} km</span>` : ""}</div>
       </div>`).join("");

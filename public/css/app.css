@@ -219,6 +219,19 @@ h1{font:800 20px/1.1 var(--f-display);letter-spacing:-.01em;margin:0;white-space
   background:var(--panel);color:var(--ink-2);font-size:12.5px;font-weight:500;cursor:pointer;white-space:nowrap}
 .qc .dot{width:9px;height:9px;border-radius:50%;flex:none}
 .qc[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
-.quickcats.some .qc[aria-pressed=false] .dot{opacity:.35}
 .qc-all{font-weight:600}
 @media (max-width:759px){ .quickcats{order:5;margin-top:0} }
+
+/* ---- référentiel CIEL : pôles, niveau de lien, activités */
+.pole{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:4px;font:700 10.5px var(--f-mono);color:#fff;margin-right:3px;vertical-align:-3px}
+.pole-E{background:var(--c-elec)} .pole-R{background:var(--c-info)} .pole-D{background:var(--c-tele)}
+.item .poles{display:inline-flex;gap:0}
+.qc-sep{flex:none;width:1px;background:var(--line);margin:4px 4px}
+.pop .ciel{margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px}
+.pop .ciel-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.pop .ciel .bar{display:inline-flex;gap:2px;color:var(--accent)}
+.pop .ciel .bar i{width:4px;height:11px;border-radius:1px;background:currentColor;opacity:.25}
+.pop .ciel .bar i.on{opacity:1}
+.pop .ciel ul{margin:6px 0 0;padding-left:0;list-style:none;display:grid;gap:2px;color:var(--ink-2)}
+.pop .ciel li .mono{display:inline-block;min-width:22px;color:var(--ink);font-weight:500}
+.pop .ciel .fams{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}

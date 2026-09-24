@@ -10,7 +10,8 @@ Environ 8 800 entreprises et services, classés par pertinence pour le CIEL : en
 
 ## Pour les élèves
 
-- Filtre par pertinence, département, secteur ou code NAF, et autour de ta ville (Ruffec en tête de liste).
+- Les lieux sont triés par **lien avec le référentiel du bac pro CIEL** ; chaque fiche indique les activités possibles (E1–E5, R1–R5, D1–D3).
+- Filtre par famille de métiers (SI & DSI, réseaux & télécoms, courants faibles & sûreté, électronique, cybersécurité), par pôle, par département ou autour de ta ville.
 - Coche « Avec téléphone ou e-mail » pour avoir les pistes directement exploitables.
 - ★ garde tes favoris dans ton navigateur ; « Copier la liste » les colle dans un tableur.
 - Vérifie toujours que l'entreprise existe encore avant d'appeler.
