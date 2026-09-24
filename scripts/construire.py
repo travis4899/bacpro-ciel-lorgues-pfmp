@@ -22,7 +22,7 @@ from config import (ROOT, CACHE, CATEGORIES, CODES_NAF, PERIMETRE_SEULEMENT, DEP
 from l93 import l93_to_wgs
 from collecte import blocs_vrac, sirens_inpi
 from sites_web import decouvrir, tel_fr, visiter
-from referentiel import familles
+from referentiel import familles, validation
 
 DEPS = set(DEPARTEMENTS)
 stats = Counter()
@@ -52,21 +52,9 @@ BOUTIQUES = ("maint", "comm", "secu")  # petites structures accessibles, même s
 
 
 def pertinence(r):
-    """3 = Forte, 2 = Moyenne, 1 = À vérifier."""
-    cat, t, nom = r["cat"], r["t"], nrm(r["nom"] + " " + r["ens"])
-    if cat == "grande": return 2
-    if cat in ("info", "tele", "elec", "maint", "secu", "cyber") or MOTS_METIER.search(nom):
-        rel = 3
-    elif cat in ("elecb", "comm", "etudes"):
-        rel = 2
-    elif cat in ("public", "sante", "media"):
-        rel = 2 if (t in TRANCHES and t >= "21") else 1
-    else:
-        rel = 1
-    # Indépendant sans salarié en informatique/conseil : piste faible, sauf s'il a une vitrine ou un contact
-    if r["src"] in ("ajout", "osm") and cat not in BOUTIQUES and t not in EMPLOYEUR:
-        rel = 2 if cat == "cyber" or r.get("tel") or r.get("vitrine") else 1
-    return rel
+    """3 = Forte, 2 = Moyenne, 1 = À vérifier : lien réel avec le bac pro CIEL, le BTS CIEL ou le BTS SIO
+    (règles et revue manuelle dans scripts/referentiel.py -> validation())."""
+    return validation(r)[0]
 
 
 def taille(t):

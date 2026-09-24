@@ -3,7 +3,8 @@
     python3 scripts/grist_completer.py donnees/propositions_pfmp.json --simulation
     python3 scripts/grist_completer.py donnees/propositions_pfmp.json
 
-Format : {"remplissages": [{"siret": ..., "champs": {...}}], "ajouts": [{champs Grist}]}
+Format : {"remplissages": [{"siret": ..., "champs": {...}}], "ajouts": [{champs Grist}],
+          "remplacements": [{"siret": ..., "champ": ..., "ancien": ..., "nouveau": ...}]}
 Règles (les modifications faites à la main ne sont jamais écrasées) :
   - remplissage d'une cellule seulement si elle est vide ;
   - exception « Pertinence » : remplacée seulement si elle vaut encore la valeur automatique d'origine ;
@@ -47,6 +48,13 @@ def main():
                 diff[c] = v
         if diff:
             maj.append({"id": l["id"], "fields": diff})
+
+    # remplacements conditionnels : la cellule ne change que si elle a encore la valeur « ancien »
+    # (valeur mise par un script précédent, jamais modifiée à la main)
+    for p in prop.get("remplacements", []):
+        l = par_siret.get(p["siret"])
+        if l and egal(l["fields"].get(p["champ"]), p["ancien"]) and not egal(p["ancien"], p["nouveau"]):
+            maj.append({"id": l["id"], "fields": {p["champ"]: p["nouveau"]}})
 
     ajouts = []
     for a in prop.get("ajouts", []):

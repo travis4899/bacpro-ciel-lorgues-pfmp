@@ -123,6 +123,22 @@ Calculés par `grist_sync.py` au moment de publier (rien n'est stocké dans Gris
   et les ajouts manuels dans Grist sont toujours publiés. Les règles (codes NAF, mots-clés) sont en tête de
   `referentiel.py` : c'est là qu'on élargit ou resserre le périmètre.
 
+## Validation « lien réel » (colonne Pertinence)
+
+La Pertinence automatique (`referentiel.validation()`) ne valide que les lieux qui ont un **lien réel** avec le
+bac pro CIEL, le BTS CIEL (IR / ER) ou le BTS SIO (SISR / SLAM) ; tout le reste est « À vérifier » (toujours dans
+Grist et sur la carte, masqué par défaut).
+- **Forte** : ESN, développement, hébergement, télécoms, fibre, alarmes / sûreté, dépannage et boutiques informatiques,
+  fabrication et réparation électroniques, cybersécurité, services informatiques publics (ESI, Soluris…), stage réalisé.
+- **Moyenne** : lien réel mais indirect — DSI avérée (collectivités de 200 agents et plus, départements, région,
+  préfectures et SGCD/SIDSIC, rectorat, CPAM/CAF/MSA/Urssaf, SDIS, hôpitaux importants, universités, banques,
+  assurances, centres d'appels, réseaux d'énergie et d'eau de 100 salariés et plus, sièges et sites de 250 et plus),
+  électriciens courants faibles / alarme / domotique, automatismes, équipement électrique, ateliers de réparation.
+- **À vérifier** : indépendants sans salarié ni contact, secteurs voisins sans preuve (électricien général, solaire,
+  bureau d'études BTP), magasins de vente (grande distribution, boutiques d'opérateurs), petites collectivités,
+  entreprises de moins de 250 salariés hors secteurs à forte informatique.
+Les règles viennent d'une revue manuelle (septembre 2026) ; une Pertinence modifiée à la main dans Grist n'est jamais écrasée.
+
 ## Listes PFMP du lycée (stages réalisés, listing)
 
 `scripts/grist_completer.py` applique dans Grist un fichier de propositions (ex. `donnees/propositions_pfmp.json`,
@@ -131,6 +147,7 @@ elles sont vides, « Pertinence » passée à Forte seulement si personne ne l'a
 ```sh
 python3 scripts/grist_completer.py donnees/propositions_pfmp.json --simulation
 python3 scripts/grist_completer.py donnees/propositions_pfmp.json
+python3 scripts/grist_completer.py donnees/revalidation_listing.json   # remplacements conditionnels
 ```
 **Données personnelles** : seules les informations d'entreprise vont dans Grist (public). Les tuteurs (nom, fonction,
 téléphone), les e-mails nominatifs et les portables restent dans des fichiers privés hors dépôt
