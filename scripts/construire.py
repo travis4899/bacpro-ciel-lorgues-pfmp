@@ -17,11 +17,12 @@ from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 from api import UA
-from config import (ROOT, CACHE, CATEGORIES, CODES_NAF, DEPARTEMENTS, EMPLOYEUR, EXCLUS_GRANDES, DONNEES, PUBLIC,
+from config import (ROOT, CACHE, CATEGORIES, CODES_NAF, PERIMETRE_SEULEMENT, DEPARTEMENTS, EMPLOYEUR, EXCLUS_GRANDES, DONNEES, PUBLIC,
                     SOURCES, SOURCES_LABELS, TRANCHES)
 from l93 import l93_to_wgs
 from collecte import blocs_vrac, sirens_inpi
 from sites_web import decouvrir, tel_fr, visiter
+from referentiel import familles
 
 DEPS = set(DEPARTEMENTS)
 stats = Counter()
@@ -202,7 +203,11 @@ def lire_naf():
                     continue
                 if code == "86.10Z" and not (t in TRANCHES and t >= "21"):
                     continue
-                if add(from_api(res, e, "ajout")):
+                r = from_api(res, e, "ajout")
+                if code in PERIMETRE_SEULEMENT and not familles(r):
+                    stats["hors_perimetre_" + code] += 1
+                    continue
+                if add(r):
                     stats["ajout_naf"] += 1
 
 
@@ -215,7 +220,7 @@ def lire_mots_cles():
         for res in json.loads(f.read_text()):
             for e in etabs_zone(res):
                 r = from_api(res, e, "ajout")
-                if CYBER.search(nrm(r["nom"] + " " + r["ens"])) or (r["naf"] or "").startswith(KW_NAF):
+                if CYBER.search(nrm(r["nom"] + " " + r["ens"])) or (r["naf"] or "").startswith(KW_NAF) or familles(r):
                     if add(r):
                         stats["ajout_mots_cles"] += 1
 

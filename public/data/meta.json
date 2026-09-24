@@ -22,7 +22,9 @@
   "vrac": "Liste du prof (vrac)",
   "ajout": "Ajout automatique (SIRENE)",
   "osm": "Ajout OpenStreetMap",
-  "grist": "Ajout Grist (enseignant)"
+  "grist": "Ajout Grist (enseignant)",
+  "vecu": "Stage réalisé (listes PFMP)",
+  "listing": "Listing entreprises CIEL"
  },
  "tranches": {
   "00": "0 salarié",

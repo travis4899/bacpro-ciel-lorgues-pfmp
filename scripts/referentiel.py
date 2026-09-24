@@ -35,7 +35,7 @@ ACTIVITES = {
 NAF = {
     # Électronique : fabrication, intégration, réparation (emplois : monteur-câbleur, opérateur CMS, réparation…)
     "26": (3, "E1 E2 E3 E4"), "26.51": (3, "E1 E2 E4"), "27.1": (3, "E2 E3"), "27.3": (3, "E3"), "27.9": (3, "E2 E3"),
-    "29.31": (3, "E2 E3 E4"), "30.30": (3, "E2 E3 E4"), "33.13": (3, "E2 E5"), "33.14": (2, "E5"),
+    "27.2": (3, "E2 E3"), "29.31": (3, "E2 E3 E4"), "30.30": (3, "E2 E3 E4"), "33.13": (3, "E2 E5"), "33.14": (2, "E5"),
     "33.20C": (3, "E4 R2"), "33.20D": (3, "E4 R2"), "95.12": (3, "E5 R1"), "95.21": (3, "E5 R1"), "95.22": (2, "E5"),
     # Réseaux, télécoms, fibre, sécurité électronique (technicien d'installation / maintenance réseaux, alarmes…)
     "61": (3, "R1 R2 R3 R5"), "42.22": (3, "R2 R5"), "80.20": (3, "R2 R5 E5"), "95.11": (3, "R1 R5 E5"),
@@ -51,7 +51,7 @@ NAF = {
 MOTS = [
     (r"CYBER|SECURITE (INFORMATIQUE|NUMERIQUE)|PENTEST", 3, "D3 R3"),
     (r"INFORMATIQU|NUMERIQU|DIGITAL|LOGICIEL|\bSOFT|\bDATA\b|\bCLOUD\b|\bWEB\b", 3, "R1 R3 D2"),
-    (r"RESEAU|TELECOM|FIBRE|FTTH|TELEPHON|\bRADIO\b|ANTENNE", 3, "R2 R5"),
+    (r"RESEAU|TELECOM|FIBRE|FTTH|TELEPHON|\bRADIO\b|ANTENNIST|\bANTENNES\b|ANTENNE (TV|TELE|SATELLITE|NUMERIQUE|SERVICE)", 3, "R2 R5"),
     (r"ELECTRONI|AUTOMATISM|DOMOTI|ROBOT|MECATRONI", 3, "E4 E5"),
     (r"ALARME|VIDEO ?SURVEILL|VIDEOPROTECT|INCENDIE|COURANTS? FAIBLES?|CONTROLE D.ACCES|SURETE", 2, "R2 R5"),
 ]
@@ -59,6 +59,14 @@ MOTS = [
 CAT_DSI = {"grande": (2, "R3 R5 D3"), "public": (2, "R3 R5 D3"), "sante": (2, "R3 R5 D3")}
 PROCHES = ("26", "27", "33", "42", "43", "46", "47", "58", "61", "62", "63", "70", "71", "74", "80", "82", "95")
 ROLE_IT = re.compile(r"informatique|service informatique|\bit\b|réseau|reseau|système|systeme|analyste|développ|develop", re.I)
+
+
+_TRANCHES = ("00", "01", "02", "03", "11", "12", "21", "22", "31", "32", "41", "42", "51", "52", "53")
+
+
+def _au_moins(t, seuil):
+    """Tranche d'effectif INSEE >= seuil ; « NN » (non renseigné) ou vide -> False."""
+    return t in _TRANCHES and t >= seuil
 
 
 def _nrm(s):
@@ -81,7 +89,7 @@ def evaluer(l):
             niveau = max(niveau, n if proche else min(n, 1))
             acts |= set(a.split())
             break
-    dsi = l.get("cat") == "grande" or (l.get("cat") in CAT_DSI and (l.get("t") or "") >= "21")
+    dsi = l.get("cat") == "grande" or (l.get("cat") in CAT_DSI and _au_moins(l.get("t") or "", "21"))
     if dsi:
         n, a = CAT_DSI.get(l.get("cat"), (2, "R3 R5 D3"))
         if niveau < n:
@@ -109,17 +117,17 @@ _F_NAF = {  # préfixe NAF -> familles
     "62": "SI", "63.1": "SI", "58.2": "SI", "95.11": "SI", "47.41": "SI", "46.51": "SI",
     "62.02B": "SI RT", "62.03": "SI RT", "61": "RT", "42.22": "RT", "47.42": "RT", "95.12": "RT EL",
     "80.20": "CF", "26": "EL", "27.1": "EL", "27.3": "EL", "27.9": "EL", "29.31": "EL", "30.30": "EL",
-    "33.13": "EL", "33.20C": "EL CF", "33.20D": "EL CF", "95.21": "EL", "46.52": "EL RT",
+    "27.2": "EL", "33.13": "EL", "33.20C": "EL CF", "33.20D": "EL CF", "95.21": "EL", "46.52": "EL RT",
 }
 _F_MOTS = [
     (r"CYBER|SECURITE (INFORMATIQUE|NUMERIQUE|DES SI|DES SYSTEMES)|PENTEST|\bSOC\b|\bRSSI\b|AUDIT (SECURITE|INFORMATIQUE)", "CY SI"),
     (r"INFORMATIQU|NUMERIQU|LOGICIEL|\bSOFT|\bDATA\b|\bCLOUD\b|\bDSI\b|SYSTEMES? D.INFORMATION|INFOGERANCE", "SI"),
-    (r"RESEAU|TELECOM|FIBRE|FTTH|TELEPHON|ANTENNE|\bRADIO\b|\bWIFI\b|\b5G\b|\bVDI\b", "RT"),
+    (r"RESEAU|TELECOM|FIBRE|FTTH|TELEPHON|ANTENNIST|\bANTENNES\b|ANTENNE (TV|TELE|SATELLITE|NUMERIQUE|SERVICE)|\bRADIO\b|\bWIFI\b|\b5G\b|\bVDI\b", "RT"),
     (r"ALARME|SURETE|VIDEO ?SURVEILL|VIDEOPROTECT|INCENDIE|COURANTS? FAIBLES?|CONTROLE D.ACCES|DOMOTI|INTRUSION|TELESURVEILL", "CF"),
     (r"ELECTRONI|AUTOMATISM|ROBOTI|MECATRONI|EMBARQU|\bIOT\b|INSTRUMENTATION|CARTES? ELECTRONIQUES?", "EL"),
 ]
 # Bureaux d'études et électriciens : seulement si le nom montre une activité du périmètre
-_SI_MOTS_SEULEMENT = ("43.21", "43.22", "71.12", "71.20", "33.14", "95.22")
+_SI_MOTS_SEULEMENT = ("43.21", "43.22", "71.12", "71.20", "33.14", "95.22", "33.12", "72.19", "32.50")
 
 
 def familles(l):
@@ -137,10 +145,15 @@ def familles(l):
                     or l.get("cat") in ("grande", "public", "sante", "cyber", "info", "tele", "elec", "secu")):
                 fam |= set(f.split())
     cat, t, tu = l.get("cat"), l.get("t") or "", l.get("tu") or ""
-    if cat == "grande" or (cat in ("public", "sante") and t >= "21"):
+    grand_siege = bool(l.get("siege")) and _au_moins(tu, "32")
+    if naf.startswith("85.4") and (l.get("siege") or _au_moins(t, "21")):
+        fam.add("SI")                                  # université, IUT, école d'ingénieurs : DSI
+        if grand_siege or _au_moins(t, "32"):
+            fam.add("CY")
+    if cat == "grande" or (cat in ("public", "sante") and _au_moins(t, "21")):
         fam.add("SI")                                  # service informatique / DSI probable
-        if tu >= "32" or t >= "32":
-            fam.add("CY")                              # structure de 250 salariés et plus : RSSI, sécurité du SI
+        if grand_siege or _au_moins(t, "32"):
+            fam.add("CY")                              # siège ou site de 250 salariés et plus : RSSI, sécurité du SI
     if l.get("osm_type") in ("Boutique informatique", "Dépannage informatique", "Entreprise informatique"):
         fam.add("SI")
     if l.get("osm_type") in ("Boutique télécoms", "Entreprise télécoms", "Magasin / réparation de téléphones"):

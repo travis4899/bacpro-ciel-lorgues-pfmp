@@ -48,17 +48,26 @@ CODES_NAF = {
     "71.12B": True,
     # Hôpitaux (seulement >= 50 salariés, filtré au moment du build)
     "86.10Z": True,
+    # Électronique et équipements (batteries, automobile, aéronautique)
+    "27.11Z": False, "27.20Z": False, "29.31Z": False, "30.30Z": False,
+    # Codes mixtes : gardés seulement si le nom ou la taille les rattache au périmètre métiers (PERIMETRE_SEULEMENT)
+    "33.12Z": True, "71.20B": True, "72.19Z": True, "32.50A": True, "85.42Z": True,
 }
+# Codes NAF trop larges : une entreprise n'est gardée que si scripts/referentiel.familles() la rattache à une famille
+PERIMETRE_SEULEMENT = {"33.12Z", "71.20B", "72.19Z", "32.50A", "85.42Z"}
 
 # Recherches plein texte (cybersécurité n'a pas de code NAF propre)
 MOTS_CLES = ["cybersécurité", "cybersecurite", "cyber", "sécurité informatique", "securite informatique",
              "sécurité des systèmes d'information", "pentest", "infogérance", "réseaux informatiques",
-             "fibre optique", "courants faibles", "câblage"]
+             "fibre optique", "courants faibles", "câblage", "alarme", "vidéosurveillance", "vidéoprotection", "domotique",
+             "contrôle d'accès", "sécurité incendie", "télésurveillance", "sûreté", "antenne", "automatisme", "électronique",
+             "informatique", "hébergement", "RGPD"]
 
 # Grandes structures : on collecte les unités légales de 20 salariés et plus (tous secteurs)
 TRANCHES_GRANDES = ["12", "21", "22", "31", "32", "41", "42", "51", "52", "53"]
 # Secteurs exclus des « sièges & grands sites » : l'effectif n'y reflète pas un service informatique
-EXCLUS_GRANDES = ("78.", "81.2", "80.10", "85.", "87.", "88.", "94.", "55.", "56.", "97.", "98.", "99.")
+EXCLUS_GRANDES = ("78.", "81.2", "80.10", "85.1", "85.2", "85.3", "85.5", "85.6", "87.", "88.", "94.", "55.", "56.", "97.", "98.", "99.")
+# (85.4 enseignement supérieur conservé : universités, IUT, écoles d'ingénieurs ont une DSI)
 
 # Libellés affichés
 CATEGORIES = {
