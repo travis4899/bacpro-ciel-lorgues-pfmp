@@ -16,12 +16,14 @@ Aucune ligne n'est supprimée : un lieu absent des nouvelles données est signal
 import datetime
 import json
 import sys
+import time
 
 from config import CATEGORIES, DONNEES
 from grist_api import (AUTO, COLONNES, TABLE, api_key, appel, auto_vers_grist, categorie, cp_txt, lire_colonnes,
                        lire_lignes, siret_txt, texte)
 
-LOT = 400
+LOT = 200
+PAUSE = 2      # secondes entre deux envois (protection anti-rafale de grist.numerique.gouv.fr)
 PRECEDENT = DONNEES / "grist_dernier_envoi.json"
 SAUVEGARDES = DONNEES / "sauvegardes"
 ABSENT = "Absent de la mise à jour du "
@@ -37,6 +39,22 @@ def egal(a, b):
     if isinstance(a, bool) or isinstance(b, bool):
         return bool(a) == bool(b)
     return str(a if a is not None else "").strip() == str(b if b is not None else "").strip()
+
+
+def ecrire(method, records, key, suivi=False):
+    """Écrit par lots de LOT lignes. Grist exige que toutes les lignes d'un même envoi aient les mêmes colonnes :
+    on regroupe donc les lignes par ensemble de colonnes modifiées."""
+    groupes = {}
+    for r in records:
+        groupes.setdefault(tuple(sorted(r["fields"])), []).append(r)
+    fait = 0
+    for lst in groupes.values():
+        for i in range(0, len(lst), LOT):
+            appel(method, f"tables/{TABLE}/records", {"records": lst[i:i + LOT]}, key)
+            time.sleep(PAUSE)
+            fait += len(lst[i:i + LOT])
+            if suivi:
+                print(f"  {fait}/{len(records)} lignes", flush=True)
 
 
 def colonnes(key, simulation):
@@ -55,8 +73,8 @@ def colonnes(key, simulation):
     if not simulation:
         if ajouts:
             appel("POST", f"tables/{TABLE}/columns", {"columns": ajouts}, key)
-        if modifs:
-            appel("PATCH", f"tables/{TABLE}/columns", {"columns": modifs}, key)
+        for m in modifs:   # une par une : Grist exige les mêmes propriétés pour toutes les colonnes d'un même envoi
+            appel("PATCH", f"tables/{TABLE}/columns", {"columns": [m]}, key)
 
 
 def main():
@@ -96,8 +114,7 @@ def main():
                 propre["Secteur"] = CATEGORIES[categorie(texte(f["Secteur"]))]
             if any(f.get(k) != v for k, v in propre.items()):
                 fix.append({"id": l["id"], "fields": propre})
-        for i in range(0, len(fix), LOT):
-            appel("PATCH", f"tables/{TABLE}/records", {"records": fix[i:i + LOT]}, key)
+        ecrire("PATCH", fix, key)
         lignes = lire_lignes(key)
 
     # 3. fusion
@@ -142,11 +159,9 @@ def main():
         return
 
     # 4. écriture par lots, arrêt à la première erreur
-    for i in range(0, len(maj), LOT):
-        appel("PATCH", f"tables/{TABLE}/records", {"records": maj[i:i + LOT]}, key)
-    for i in range(0, len(ajouts), LOT):
-        appel("POST", f"tables/{TABLE}/records", {"records": ajouts[i:i + LOT]}, key)
-        print(f"  {min(i + LOT, len(ajouts))}/{len(ajouts)} lignes ajoutées", flush=True)
+    ecrire("PATCH", maj, key)
+    print(f"Ajout de {len(ajouts)} lignes…")
+    ecrire("POST", ajouts, key, suivi=True)
     PRECEDENT.write_text(json.dumps(nouveau, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print("Envoi terminé. Étape suivante : python3 scripts/grist_sync.py (ou le pipeline de la Forge).")
 

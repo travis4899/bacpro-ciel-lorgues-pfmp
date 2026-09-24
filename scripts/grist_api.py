@@ -6,6 +6,7 @@ Grist est la source unique de la carte :
 import json
 import os
 import re
+import time
 import unicodedata
 import urllib.error
 import urllib.request
@@ -72,13 +73,27 @@ def appel(method, chemin, data=None, key=None):
     if data is not None:
         body = json.dumps(data).encode()
         headers["Content-Type"] = "application/json"
-    req = urllib.request.Request(url, data=body, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=120) as r:
-            txt = r.read().decode()
+    # grist.numerique.gouv.fr est protégé contre les rafales : trop de requêtes -> page HTML 403 / 302 « Loading ».
+    # On attend alors de plus en plus longtemps avant de réessayer (jusqu'à ~15 min au total).
+    for essai, attente in enumerate((0, 30, 60, 120, 240, 480)):
+        if attente:
+            print(f"    Grist limite les envois : nouvel essai dans {attente} s…", flush=True)
+            time.sleep(attente)
+        req = urllib.request.Request(url, data=body, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                txt = r.read().decode()
+            if txt.lstrip().startswith("<"):
+                continue                                  # page de la protection anti-rafale
             return json.loads(txt) if txt.strip() else None
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"Grist {method} {chemin} : {e.code} {e.read().decode()[:300]}") from None
+        except urllib.error.HTTPError as e:
+            txt = e.read().decode()
+            if e.code in (302, 403, 429, 502, 503, 504) and (e.code != 403 or txt.lstrip().startswith("<")):
+                continue
+            raise RuntimeError(f"Grist {method} {chemin} : {e.code} {txt[:300]}") from None
+        except (urllib.error.URLError, TimeoutError):
+            continue
+    raise RuntimeError(f"Grist {method} {chemin} : toujours bloqué après plusieurs essais, réessayer plus tard.")
 
 
 def lire_lignes(key=None):
@@ -97,13 +112,18 @@ def siret_txt(v):
     if isinstance(v, (int, float)):
         return str(int(v)).zfill(14)
     v = str(v).strip()
+    if re.fullmatch(r"\d+\.0+", v):    # « 42473713800059.0 » après conversion Numérique -> Texte
+        v = v.split(".")[0]
     return v.zfill(14) if v.isdigit() and len(v) < 14 else v
 
 
 def cp_txt(v):
     if isinstance(v, (int, float)) and v:
         return str(int(v)).zfill(5)
-    return str(v or "").strip()
+    v = str(v or "").strip()
+    if re.fullmatch(r"\d+\.0+", v):
+        v = v.split(".")[0]
+    return v.zfill(5) if v.isdigit() and len(v) == 4 else v
 
 
 def auto_vers_grist(r, naf):
@@ -155,10 +175,13 @@ def booleen(v):
 
 
 def nombre(v):
+    """Coordonnée : None si vide. Une cellule Numérique vide vaut souvent 0 dans Grist -> considérée vide."""
+    if isinstance(v, bool):
+        return None
     if isinstance(v, (int, float)):
-        return float(v)
+        return float(v) or None
     try:
-        return float(str(v).replace(",", "."))
+        return float(str(v).replace(",", ".")) or None
     except (TypeError, ValueError):
         return None
 
