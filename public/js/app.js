@@ -225,10 +225,14 @@
       r.m = L.circleMarker([r.lat, r.lon], r.stage
         ? { radius: 10, color: token("--stage"), weight: 3, fillColor: col(r.cat), fillOpacity: 1 }
         : { radius: radius[r.rel], color: r.rel == 3 ? token("--ink") : col(r.cat), weight: r.rel == 3 ? 1.5 : 1, fillColor: col(r.cat), fillOpacity: r.rel == 1 ? 0.55 : 0.9 });
-      r.m.bindPopup(() => popup(r), { maxWidth: 330 });
-      r.m.on("popupopen", () => highlight(r));
+      r.m.on("click", () => openFiche(r));
     });
     let townCircle = null;
+    // Une seule fiche, posée sur la carte et non liée au point : MarkerCluster retire et remet les points
+    // pendant ses animations, ce qui refermait aussitôt une fiche liée au point (surtout sur téléphone).
+    const fiche = L.popup({ maxWidth: 330 });
+    let ficheRow = null;
+    function openFiche(r) { ficheRow = r; fiche.setLatLng(r.m.getLatLng()).setContent(popup(r)); map.openPopup(fiche); highlight(r); }
 
     // ---------------------------------------------------------- fiche (popup)
     function contactBlock(r) {
@@ -325,6 +329,7 @@
         state.poles.size > 0, state.fam.size > 0, !same(state.adeq, DEF_ADEQ)].filter(Boolean).length;
       $("nactive").hidden = !actifs; $("nactive").textContent = actifs;
       cluster.clearLayers(); cluster.addLayers(current.map((r) => r.m));
+      if (ficheRow && !current.includes(ficheRow)) map.closePopup(fiche);
       if (townCircle) { map.removeLayer(townCircle); townCircle = null; }
       if (t) {
         townCircle = L.circle([t[1], t[2]], { radius: state.km * 1000, color: token("--accent"), weight: 1.5, fill: false, dashArray: "4 4", interactive: false }).addTo(map);
@@ -356,7 +361,7 @@
     listEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { const it = e.target.closest(".item"); if (it) focusRow(rows[+it.dataset.i]); } });
     function focusRow(r) {
       if (phone()) setView("map");
-      setTimeout(() => cluster.zoomToShowLayer(r.m, () => r.m.openPopup()), phone() ? 60 : 0);
+      setTimeout(() => cluster.zoomToShowLayer(r.m, () => openFiche(r)), phone() ? 60 : 0);
     }
     function highlight(r) {
       document.querySelectorAll(".item.sel").forEach((x) => x.classList.remove("sel"));
