@@ -137,8 +137,9 @@ details.f[open] summary::after{transform:rotate(-135deg)}
 .pop .note{font-size:12.5px;margin:6px 0;padding:6px 9px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 6px 6px 0}
 
 /* ---- pied de page : liens projet + fenêtre « À propos » */
-.foot-links{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;font-weight:500}
-.foot-links a,.foot-links .linkbtn{color:var(--accent);font-size:12px}
+.foot-links{display:flex;justify-content:space-around;gap:8px}
+.foot-links a,.foot-links button{display:grid;place-items:center;width:36px;height:36px;border-radius:8px;border:0;background:none;color:var(--accent);cursor:pointer}
+.foot-links a:hover,.foot-links button:hover{background:var(--accent-soft)}
 .about{max-width:min(560px,calc(100vw - 32px));width:100%;border:1px solid var(--line);border-radius:12px;padding:0;background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
 .about::backdrop{background:rgba(10,20,28,.45)}
 .about form{padding:20px 22px;display:grid;gap:10px;font-size:13.5px;line-height:1.55}
@@ -171,7 +172,7 @@ h1{font:800 20px/1.1 var(--f-display);letter-spacing:-.01em;margin:0;white-space
 .fp-head b{font-weight:600}
 .fp-close{display:none;background:none;border:0;font-size:16px;cursor:pointer;color:var(--ink-2);padding:4px 6px;margin-left:8px}
 .filters{flex:1;overflow:auto;min-height:0}
-.foot{display:grid;gap:6px;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px));font-size:11px;line-height:1.5;color:var(--ink-3);border-top:1px solid var(--line)}
+.foot{display:grid;gap:6px;padding:4px 16px calc(12px + env(safe-area-inset-bottom,0px));font-size:11px;line-height:1.5;color:var(--ink-3);border-top:1px solid var(--line)}
 
 .mapwrap{position:relative;min-height:0;min-width:0}
 
