@@ -83,4 +83,5 @@ SOURCES_LABELS = {
     "annuaire": "Liste du prof (annuaire)", "inpi": "Liste du prof (INPI)", "vrac": "Liste du prof (vrac)",
     "ajout": "Ajout automatique (SIRENE)", "osm": "Ajout OpenStreetMap",
     "grist": "Ajout Grist (enseignant)", "vecu": "Stage réalisé (listes PFMP)", "listing": "Listing entreprises CIEL",
+    "lycee": "Liste PFMP du lycée",
 }

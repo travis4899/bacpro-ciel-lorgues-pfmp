@@ -7,8 +7,8 @@ Lignes exclues de la carte : « Masquer » coché, ou « Statut mise à jour aut
 Lignes ajoutées à la main sans coordonnées : placées à partir de l'adresse (API Adresse).
 
 Périmètre métiers (scripts/referentiel.py) : seuls les lieux rattachés à une famille (SI & DSI, réseaux & télécoms,
-courants faibles & sûreté, électronique & bureau d'études, cybersécurité) sont publiés, plus les stages réalisés
-et les ajouts manuels.
+courants faibles & sûreté, électronique & bureau d'études, cybersécurité) sont publiés, plus les stages réalisés,
+les ajouts manuels et les partenaires de la liste PFMP du lycée (Origine « Liste PFMP du lycée »).
 
 Garde-fous : si Grist ne répond pas, si une colonne indispensable manque ou si le nombre de lieux chute
 de plus de 20 %, le script s'arrête en erreur -> le pipeline échoue et le site publié précédemment reste en ligne.
@@ -80,8 +80,9 @@ def main():
             places += 1
         l["adeq"], l["poles"], l["acts"] = evaluer(l)
         fam = familles(l)
-        # périmètre métiers : hors périmètre -> non publié, sauf stage déjà réalisé ou ajout manuel dans Grist
-        if not fam and not l["stage"] and l["src"] != "grist":
+        # périmètre métiers : hors périmètre -> non publié, sauf stage déjà réalisé, ajout manuel dans Grist
+        # ou partenaire de la liste PFMP du lycée
+        if not fam and not l["stage"] and l["src"] not in ("grist", "lycee"):
             hors_perimetre += 1
             continue
         l["fam"] = " ".join(k for k in FAMILLES if k in fam)
