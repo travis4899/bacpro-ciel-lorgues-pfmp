@@ -24,7 +24,8 @@
   "osm": "Ajout OpenStreetMap",
   "manuel": "Ajout manuel (enseignant)",
   "vecu": "Stage réalisé (listes PFMP)",
-  "listing": "Listing entreprises CIEL"
+  "listing": "Listing entreprises CIEL",
+  "lycee": "Liste PFMP du lycée"
  },
  "tranches": {
   "00": "0 salarié",
@@ -43,5 +44,5 @@
   "52": "5 000 à 9 999",
   "53": "10 000 et +"
  },
- "date": "2026-09-24"
+ "date": "2026-11-06"
 }
