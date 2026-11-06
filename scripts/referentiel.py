@@ -56,7 +56,7 @@ MOTS = [
     (r"ALARME|VIDEO ?SURVEILL|VIDEOPROTECT|INCENDIE|COURANTS? FAIBLES?|CONTROLE D.ACCES|SURETE", 2, "R2 R5"),
 ]
 # Structures où un service informatique (DSI) est probable : sièges, grands sites, collectivités, hôpitaux
-CAT_DSI = {"grande": (2, "R3 R5 D3"), "public": (2, "R3 R5 D3"), "sante": (2, "R3 R5 D3")}
+CAT_DSI = {"grande": (2, "R3 R5 D3"), "public": (2, "R3 R5 D3"), "mairie": (2, "R3 R5 D3"), "interco": (2, "R3 R5 D3"), "sdis": (2, "R3 R5 D3"), "justice": (2, "R3 R5 D3"), "sante": (2, "R3 R5 D3")}
 PROCHES = ("26", "27", "33", "42", "43", "46", "47", "58", "61", "62", "63", "70", "71", "74", "80", "82", "95")
 ROLE_IT = re.compile(r"informatique|service informatique|\bit\b|réseau|reseau|système|systeme|analyste|développ|develop", re.I)
 
@@ -142,7 +142,7 @@ def familles(l):
         if re.search(motif, nom):
             # le nom compte pour un secteur voisin (électricien, bureau d'études, commerce…) ou un NAF inconnu
             if (not naf or naf.startswith(PROCHES) or naf.startswith(_SI_MOTS_SEULEMENT)
-                    or l.get("cat") in ("grande", "public", "sante", "cyber", "info", "tele", "elec", "secu")):
+                    or l.get("cat") in ("grande", "public", "mairie", "interco", "sdis", "justice", "sante", "cyber", "info", "tele", "elec", "secu")):
                 fam |= set(f.split())
     cat, t, tu = l.get("cat"), l.get("t") or "", l.get("tu") or ""
     grand_siege = bool(l.get("siege")) and _au_moins(tu, "32")
@@ -150,7 +150,7 @@ def familles(l):
         fam.add("SI")                                  # université, IUT, école d'ingénieurs : DSI
         if grand_siege or _au_moins(t, "32"):
             fam.add("CY")
-    if cat == "grande" or (cat in ("public", "sante") and _au_moins(t, "21")):
+    if cat == "grande" or (cat in ("public", "mairie", "interco", "sdis", "justice", "sante") and _au_moins(t, "21")):
         fam.add("SI")                                  # service informatique / DSI probable
         if grand_siege or _au_moins(t, "32"):
             fam.add("CY")                              # siège ou site de 250 salariés et plus : RSSI, sécurité du SI
@@ -263,7 +263,7 @@ def validation(l):
         if (l.get("siege") and _au_moins(tu, "31")) or _au_moins(t, "32"):
             return 2, "hôpital / clinique importante : DSI ou service biomédical"
         return 1, "petit site hospitalier"
-    if cat in ("public", "sante"):
+    if cat in ("public", "mairie", "interco", "sdis", "justice", "sante"):
         return 1, "administration sans service informatique identifié"
     # ---- entreprises privées : DSI réelle
     if naf.startswith(_SECTEURS_SI) and ((l.get("siege") and _au_moins(tu, "22")) or _au_moins(t, "22")):
