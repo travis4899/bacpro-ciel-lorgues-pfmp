@@ -1,12 +1,14 @@
-# Réponses d'API mises en cache : régénérables avec scripts/collecte.py
+# Cache des réponses d'API (régénérable)
 cache/
 __pycache__/
 *.pyc
-# Exports bruts de l'enseignant : contiennent des noms de dirigeants, restent en local (Nextcloud)
+# Fichiers sources bruts importés localement
 sources/Export_Portail_Data*.csv
 sources/*vrac*.txt
 sources/annuaire-des-entreprises-etablissements*.csv
 sources/*.ods
 sources/*.xlsx
-# Sauvegardes du tableau Grist faites avant chaque envoi (locales)
-donnees/sauvegardes/
+# Fichiers temporaires SQLite (la base entreprises.db est volontairement versionnée)
+database/*.db-journal
+database/*.db-wal
+database/*.db-shm
