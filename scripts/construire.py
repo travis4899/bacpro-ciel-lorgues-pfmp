@@ -446,7 +446,7 @@ P_VISITES, P_DECOUV = CACHE / "sites_web.json", CACHE / "sites_decouverts.json"
 
 def a_decouvrir(r):
     """Entreprises pour lesquelles on cherche un site : grandes structures et employeurs des secteurs utiles."""
-    if r.get("web") or r["siret"].startswith("osm") or r["cat"] in ("public", "autre", "sport", "media"):
+    if r.get("web") or r["siret"].startswith("osm") or r["cat"] in ("public", "mairie", "interco", "sdis", "sante", "justice", "autre", "sport", "media"):
         return False
     return r["cat"] == "grande" or r["t"] in EMPLOYEUR or r["tu"] in EMPLOYEUR or r["cat"] in BOUTIQUES
 
