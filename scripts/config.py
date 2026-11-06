@@ -49,7 +49,7 @@ CODES_NAF = {
     # Hôpitaux (seulement >= 50 salariés, filtré au moment du build)
     "86.10Z": True,
     # Administrations et services publics utiles pour les stages
-    "84.11Z": True, "84.22Z": True, "84.23Z": True, "84.24Z": True, "84.25Z": True,
+    "84.11Z": True, "84.22Z": False, "84.23Z": True, "84.24Z": False, "84.25Z": False,
     # Électronique et équipements (batteries, automobile, aéronautique)
     "27.11Z": False, "27.20Z": False, "29.31Z": False, "30.30Z": False,
     # Codes mixtes : gardés seulement si le nom ou la taille les rattache au périmètre métiers (PERIMETRE_SEULEMENT)
