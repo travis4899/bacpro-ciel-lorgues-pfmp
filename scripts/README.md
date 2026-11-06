@@ -1,4 +1,4 @@
-# Documentation des scripts
+# Documentation des scripts — Stage Explorer
 
 Les scripts sont exécutés localement par l'enseignant. La commande habituelle est lancée depuis la racine du dépôt :
 
