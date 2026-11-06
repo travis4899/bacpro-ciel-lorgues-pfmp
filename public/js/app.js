@@ -1,11 +1,11 @@
 /* Carte des stages CIEL — application (Leaflet + MarkerCluster, sans autre dépendance).
-   Données chargées depuis data/*.json, produites par scripts/construire.py. */
+   Données chargées depuis data/*.json, exportées depuis la base SQLite. */
 (function () {
   "use strict";
 
   // ------------------------------------------------------------ constantes
   const REL = { 3: "Forte", 2: "Moyenne", 1: "À vérifier" };
-  const DEPS = { "16": "Charente", "17": "Charente-Maritime", "79": "Deux-Sèvres", "86": "Vienne", "HA": "Hors académie" };
+  const DEPS = { "83": "Var", "HA": "Hors département" };
   // Référentiel du bac pro CIEL (annexe II) : pôles, activités et niveau de lien calculé par scripts/referentiel.py
   const POLES = { E: "Électronique", R: "Réseaux", D: "Cyber & données" };
   const ACTS = { E1: "Étude et conception de produits électroniques", E2: "Tests et essais", E3: "Production et assemblage d'ensembles électroniques",
@@ -17,7 +17,7 @@
   const FAM_COURT = { SI: "SI & DSI", RT: "Réseaux & télécoms", CF: "Courants faibles & sûreté", EL: "Électronique & BE", CY: "Cybersécurité" };
   const ADEQ = { 4: "Stage CIEL déjà réalisé", 3: "Cœur du référentiel CIEL", 2: "Activités CIEL possibles", 1: "Lien partiel", 0: "Hors référentiel" };
   const SIZES = { "1-9": "1 à 9", "10-49": "10 à 49", "50-249": "50 à 249", "250+": "250 et +", "0": "0 salarié", "?": "Non renseignée" };
-  const VILLE_LYCEE = "Ruffec";          // proposée en tête de la liste « Près de chez moi »
+  const VILLE_LYCEE = "Lorgues";          // proposée en tête de la liste « Près de chez moi »
   const PAGE = 80;                        // lignes affichées par lot dans la liste
   const STORE_FILTERS = "ciel-filters-v4", STORE_FAVS = "ciel-favs";
 
