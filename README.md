@@ -1,4 +1,4 @@
-# Trouve ta voie PFMP — Carte des entreprises CIEL
+# Stage Explorer — Carte des entreprises CIEL
 
 Carte interactive des entreprises et structures susceptibles d'accueillir des élèves de **bac pro CIEL** (Cybersécurité, Informatique et réseaux, Électronique) dans les départements **06 (Alpes-Maritimes), 13 (Bouches-du-Rhône) et 83 (Var)**.
 
@@ -6,7 +6,7 @@ Le projet est administré par l'enseignant depuis son poste Linux. Les données 
 
 ## Accéder à la carte
 
-[Ouvrir la carte PFMP](https://travis4899.github.io/bacpro-ciel-lorgues-pfmp/)
+[Ouvrir Stage Explorer](https://travis4899.github.io/bacpro-ciel-lorgues-pfmp/)
 
 ## Fonctionnement général
 
