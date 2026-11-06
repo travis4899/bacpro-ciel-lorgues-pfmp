@@ -48,6 +48,8 @@ CODES_NAF = {
     "71.12B": True,
     # Hôpitaux (seulement >= 50 salariés, filtré au moment du build)
     "86.10Z": True,
+    # Administrations et services publics utiles pour les stages
+    "84.11Z": True, "84.23Z": True, "84.25Z": True,
     # Électronique et équipements (batteries, automobile, aéronautique)
     "27.11Z": False, "27.20Z": False, "29.31Z": False, "30.30Z": False,
     # Codes mixtes : gardés seulement si le nom ou la taille les rattache au périmètre métiers (PERIMETRE_SEULEMENT)
@@ -75,7 +77,8 @@ CATEGORIES = {
     "elec": "Électronique (fabrication)", "maint": "Dépannage & maintenance", "secu": "Alarmes & vidéosurveillance",
     "elecb": "Électricité & courants faibles", "comm": "Vente matériel info / électronique",
     "grande": "Sièges & grands sites (service informatique probable)",
-    "public": "Collectivités & services publics", "sante": "Hôpitaux & cliniques",
+    "public": "Autres services publics", "mairie": "Mairies", "interco": "Intercommunalités",
+    "sdis": "SDIS & secours", "sante": "Hôpitaux & établissements de santé", "justice": "Tribunaux & juridictions",
     "etudes": "Bureaux d'études techniques", "media": "Médias, audiovisuel, culture",
     "sport": "Sport & loisirs", "autre": "Autres secteurs",
 }
