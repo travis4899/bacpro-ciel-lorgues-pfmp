@@ -1,6 +1,6 @@
-"""Étape 2 — Fusion, classement, contacts, géocodage -> donnees/lieux_auto.json (+ fichiers statiques du site)
+"""Étape 2 — Fusion, classement, contacts et géocodage -> donnees/lieux_auto.json.
 
-Étape suivante : python3 scripts/grist_push.py (envoi dans Grist, sans écraser les modifications manuelles).
+Étape suivante : python3 scripts/sqlite_sync.py --sync-auto --export (fusion SQLite et export public).
 
     python3 scripts/construire.py            # utilise le cache ; visite les sites web pas encore visités
     python3 scripts/construire.py --sans-web # ne visite aucun site web (plus rapide)
@@ -480,7 +480,7 @@ def visites():
 # ---------------------------------------------------------------- sorties
 def fond_de_carte():
     g = json.loads((CACHE / "geo" / "deps.geojson").read_text())
-    voisins = {"85", "49", "37", "36", "87", "24", "33", "19", "23", "44", "41"}
+    voisins = {"04", "05", "06", "13", "84"}
 
     def rnd(c):
         return [round(c[0], 3), round(c[1], 3)] if isinstance(c[0], (int, float)) else [rnd(x) for x in c]
@@ -513,7 +513,7 @@ def ecrire():
     DONNEES.mkdir(exist_ok=True)
     (DONNEES / "lieux_auto.json").write_text(json.dumps({"champs": champs, "lieux": rows, "naf": naf}, ensure_ascii=False,
                                                         separators=(",", ":")), encoding="utf-8")
-    # fichiers statiques du site (les lieux eux-mêmes viennent de Grist : grist_sync.py)
+    # fichiers statiques de géographie et de nomenclature ; les entreprises sont exportées depuis SQLite.
     data = PUBLIC / "data"
     base, villes = fond_de_carte()
     (data / "departements.json").write_text(json.dumps(base, separators=(",", ":")), encoding="utf-8")
