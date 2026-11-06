@@ -197,7 +197,7 @@
     tiles.on("tileerror", () => { if (++tileErr > 3 && !tileOk) useFallback(); });
     setTimeout(() => { if (!tileOk) useFallback(); }, 6000);
     const townLayer = L.layerGroup();
-    const depLbl = L.layerGroup([[45.72, 0.2, "Charente"], [45.83, -0.6, "Charente-Maritime"], [46.5, -0.35, "Deux-Sèvres"], [46.55, 0.55, "Vienne"]]
+    const depLbl = L.layerGroup([[43.55, 6.15, "Var"]]
       .map(([a, b, n]) => L.marker([a, b], { interactive: false, keyboard: false, icon: L.divIcon({ className: "dep-lbl", html: n, iconSize: null }) })));
     function drawTowns() {
       townLayer.clearLayers(); const z = map.getZoom(); const min = z < 8.5 ? 25000 : z < 9.5 ? 9000 : z < 10.5 ? 4000 : 2500;
