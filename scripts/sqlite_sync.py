@@ -167,7 +167,7 @@ def export_public():
                         naf.get(l["naf"], l["osm_type"]), TRANCHES.get(l["t"], ""),
                         TRANCHES.get(l["tu"], ""), l["stage"], l["note"], l["adeq"], l["poles"],
                         l["acts"], ", ".join(FAMILLES[k] for k in l["fam"].split()),
-                        "" if str(l["siret"]).startswith("osm-") else l["siret"],
+                        "" if str(l["siret"]).startswith(("osm-", "manuel-")) else l["siret"],
                         SOURCES_LABELS.get(l["src"], ""), l["lat"], l["lon"]])
     print(f"Export public : {len(lieux)} lieux, {hors_perimetre} hors périmètre, "
           f"{len(sans_position)} sans coordonnées.")
