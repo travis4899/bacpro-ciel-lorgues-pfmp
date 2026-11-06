@@ -62,7 +62,7 @@ PERIMETRE_SEULEMENT = {"33.12Z", "71.20B", "72.19Z", "32.50A", "85.42Z"}
 MOTS_CLES = ["cybersécurité", "cybersecurite", "cyber", "sécurité informatique", "securite informatique",
              "sécurité des systèmes d'information", "pentest", "infogérance", "réseaux informatiques",
              "fibre optique", "courants faibles", "câblage", "alarme", "vidéosurveillance", "vidéoprotection", "domotique",
-             "contrôle d'accès", "sécurité incendie", "télésurveillance", "sûreté", "antenne", "automatisme", "électronique",
+             "contrôle d'accès", "sécurité incendie", "protection civile", "sécurité civile", "télésurveillance", "sûreté", "antenne", "automatisme", "électronique",
              "informatique", "hébergement", "RGPD"]
 
 # Grandes structures : on collecte les unités légales de 20 salariés et plus (tous secteurs)
