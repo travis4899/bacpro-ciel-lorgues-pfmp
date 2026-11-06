@@ -9,8 +9,10 @@ import csv
 import datetime
 import json
 import sys
+import urllib.parse
+import urllib.request
 
-from config import CATEGORIES, PUBLIC, SOURCES_LABELS, TRANCHES
+from config import CACHE, CATEGORIES, PUBLIC, SOURCES_LABELS, TRANCHES
 from sqlite_db import AUTO_FIELDS, connect
 from referentiel import FAMILLES, evaluer, familles
 
@@ -19,6 +21,53 @@ CHAMPS = ["siret", "nom", "ens", "adr", "cp", "ville", "naf", "t", "tu", "cat", 
           "note", "adeq", "poles", "acts", "fam"]
 AUTO_JSON = ["siret", "nom", "ens", "adr", "cp", "ville", "naf", "t", "tu", "cat", "src", "siege",
              "lat", "lon", "approx", "rel", "tel", "mail", "web", "csrc", "osm_type"]
+
+
+
+def geocode_missing():
+    """Géocode les fiches manuelles sans coordonnées avec l'API Adresse."""
+    db = connect()
+    rows = db.execute(
+        "SELECT siret, adr, cp, ville FROM entreprises WHERE (lat IS NULL OR lon IS NULL) AND masquer=0"
+    ).fetchall()
+    cache_path = CACHE / "geocodage_manuels.json"
+    CACHE.mkdir(parents=True, exist_ok=True)
+    cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
+    count = 0
+    for row in rows:
+        q = " ".join(x for x in (row["adr"], row["cp"], row["ville"]) if x)
+        if not q:
+            continue
+        key = "|".join((row["adr"], row["cp"], row["ville"]))
+        if key not in cache:
+            params = {"q": q, "limit": 1}
+            if row["cp"]:
+                params["postcode"] = row["cp"]
+            try:
+                req = urllib.request.Request(
+                    "https://api-adresse.data.gouv.fr/search/?" + urllib.parse.urlencode(params),
+                    headers={"User-Agent": "trouve-ta-voie-pfmp/1.0"},
+                )
+                with urllib.request.urlopen(req, timeout=20) as response:
+                    features = json.load(response).get("features", [])
+                feature = features[0] if features else None
+                if feature and feature["properties"].get("score", 0) >= 0.5:
+                    lon, lat = feature["geometry"]["coordinates"]
+                    cache[key] = [lat, lon, feature["properties"].get("type") != "housenumber"]
+                else:
+                    cache[key] = None
+            except Exception as exc:
+                print(f"  Géocodage impossible pour {row['siret']} : {exc}")
+                continue
+            cache_path.write_text(json.dumps(cache, ensure_ascii=False), encoding="utf-8")
+        result = cache[key]
+        if result:
+            db.execute("UPDATE entreprises SET lat=?, lon=?, approx=? WHERE siret=?",
+                       (result[0], result[1], int(bool(result[2])), row["siret"]))
+            count += 1
+    db.commit()
+    db.close()
+    print(f"Géocodage SQLite : {count} adresse(s) positionnée(s).")
 
 
 def sync_auto():
@@ -128,9 +177,11 @@ def export_public():
 
 if __name__ == "__main__":
     args = set(sys.argv[1:])
-    if not args or not args.intersection({"--sync-auto", "--export"}):
+    if not args or not args.intersection({"--sync-auto", "--geocode", "--export"}):
         raise SystemExit(__doc__)
     if "--sync-auto" in args:
         sync_auto()
+    if "--geocode" in args:
+        geocode_missing()
     if "--export" in args:
         export_public()
