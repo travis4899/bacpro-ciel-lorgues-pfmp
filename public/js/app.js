@@ -131,7 +131,7 @@
     // Tout est coché -> un clic isole l'activité ; ensuite chaque clic ajoute / retire ; « Tout » réinitialise.
     const COURT = { info: "Informatique", cyber: "Cyber", tele: "Réseaux / fibre", elec: "Électronique", maint: "Dépannage",
       secu: "Alarmes / vidéo", grande: "Sièges & DSI", elecb: "Électricité", comm: "Vente info", etudes: "Bureaux d'études",
-      public: "Services publics", mairie: "Mairies", interco: "Intercommunalités", sdis: "SDIS", sante: "Santé", justice: "Justice", media: "Médias", sport: "Sport", autre: "Autres" };
+      public: "Services publics", mairie: "Mairies", interco: "Intercommunalités", sdis: "SDIS", securite_civile: "Sécurité civile", armee: "Armée", securite: "Police / gendarmerie", sante: "Santé", justice: "Justice", media: "Médias", sport: "Sport", autre: "Autres" };
     const catCount = counts("cat");
     const qcEl = $("quickcats");
     const famCount = {}; rows.forEach((r) => r.fam.split(" ").filter(Boolean).forEach((f) => (famCount[f] = (famCount[f] || 0) + 1)));
