@@ -223,7 +223,8 @@ def lire_mots_cles():
         for res in json.loads(f.read_text()):
             for e in etabs_zone(res):
                 r = from_api(res, e, "ajout")
-                if CYBER.search(nrm(r["nom"] + " " + r["ens"])) or (r["naf"] or "").startswith(KW_NAF) or familles(r):
+                if (CYBER.search(nrm(r["nom"] + " " + r["ens"])) or (r["naf"] or "").startswith(KW_NAF) or familles(r)
+                        or r["cat"] in ("securite_civile", "armee", "securite", "sdis")):
                     if add(r):
                         stats["ajout_mots_cles"] += 1
 
