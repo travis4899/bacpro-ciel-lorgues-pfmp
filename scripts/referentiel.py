@@ -56,7 +56,7 @@ MOTS = [
     (r"ALARME|VIDEO ?SURVEILL|VIDEOPROTECT|INCENDIE|COURANTS? FAIBLES?|CONTROLE D.ACCES|SURETE", 2, "R2 R5"),
 ]
 # Structures où un service informatique (DSI) est probable : sièges, grands sites, collectivités, hôpitaux
-CAT_DSI = {"grande": (2, "R3 R5 D3"), "public": (2, "R3 R5 D3"), "mairie": (2, "R3 R5 D3"), "interco": (2, "R3 R5 D3"), "sdis": (2, "R3 R5 D3"), "justice": (2, "R3 R5 D3"), "sante": (2, "R3 R5 D3")}
+CAT_DSI = {"grande": (2, "R3 R5 D3"), "public": (2, "R3 R5 D3"), "mairie": (2, "R3 R5 D3"), "interco": (2, "R3 R5 D3"), "sdis": (2, "R3 R5 D3"), "securite_civile": (2, "R3 R5 D3"), "armee": (2, "R3 R5 D3"), "securite": (2, "R3 R5 D3"), "justice": (2, "R3 R5 D3"), "sante": (2, "R3 R5 D3")}
 PROCHES = ("26", "27", "33", "42", "43", "46", "47", "58", "61", "62", "63", "70", "71", "74", "80", "82", "95")
 ROLE_IT = re.compile(r"informatique|service informatique|\bit\b|réseau|reseau|système|systeme|analyste|développ|develop", re.I)
 
@@ -150,7 +150,7 @@ def familles(l):
         fam.add("SI")                                  # université, IUT, école d'ingénieurs : DSI
         if grand_siege or _au_moins(t, "32"):
             fam.add("CY")
-    if cat == "grande" or (cat in ("public", "mairie", "interco", "sdis", "justice", "sante") and _au_moins(t, "21")):
+    if cat == "grande" or (cat in ("public", "mairie", "interco", "sdis", "securite_civile", "armee", "securite", "justice", "sante") and _au_moins(t, "21")):
         fam.add("SI")                                  # service informatique / DSI probable
         if grand_siege or _au_moins(t, "32"):
             fam.add("CY")                              # siège ou site de 250 salariés et plus : RSSI, sécurité du SI
@@ -192,7 +192,7 @@ _SI_PUBLIC_FORT = re.compile(r"\bESI POITIERS|^ESI\b|SERVICE INFORMATIQUE|CENTRE
 _SI_PUBLIC = re.compile(r"^DEPARTEMENT (DE|DES)|^ALPC|REGION NOUVELLE|COMMUNAUTE D.AGGLOMERATION|AGGLOMERATION|^CA (DU|DE)|GRAND POITIERS|"
                         r"GRAND ANGOULEME|COMMUNAUTE URBAINE|PREFECTURE DE DEPARTEMENT|SECRETARIAT GENERAL COMMUN|RECTORAT|"
                         r"SERVICE DEPARTEMENTAL DE L.EDUCATION|CAISSE PRIMAIRE|\bCPAM\b|ALLOCATIONS FAMILIALES|\bCAF\b|\bMSA\b|"
-                        r"MUTUALITE SOCIALE AGRICOLE|RECOUVREMENT DES COTISATIONS|INCENDIE ET SECOURS|\bSDIS\b|"
+                        r"MUTUALITE SOCIALE AGRICOLE|RECOUVREMENT DES COTISATIONS|INCENDIE ET SECOURS|\bSDIS\b|ARMEE|GENDARMERIE|POLICE NATIONALE|PROTECTION CIVILE|"
                         r"CENTRE DEPARTEMENTAL DE GESTION|FINANCES PUBLIQUES|\bCHU\b")
 # Secteurs privés à forte informatique : banque, assurance, mutuelles, centres d'appels, back-offices, réseaux d'énergie et d'eau
 _SECTEURS_SI = ("64", "65", "66", "82.20", "82.11", "82.99", "35.1", "35.2", "36.00", "37.00", "49.31", "93.21")
