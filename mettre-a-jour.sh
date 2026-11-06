@@ -11,7 +11,7 @@ case " $* " in
   *) python3 collecte.py ;;
 esac
 python3 construire.py
-python3 sqlite_sync.py --sync-auto --export
+python3 sqlite_sync.py --sync-auto --geocode --export
 echo
 echo "Mise à jour terminée."
 echo "Vérifie la carte localement, puis commit/push la base SQLite et les fichiers générés :"
