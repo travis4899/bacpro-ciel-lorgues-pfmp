@@ -140,7 +140,7 @@ def export_public():
         l["adeq"], l["poles"], l["acts"] = evaluer(l)
         fam = familles(l)
         # Les organismes publics ciblés restent visibles même sans famille métier CIEL détectée.
-        categories_publiques = ("mairie", "interco", "sdis", "sante", "justice")
+        categories_publiques = ("mairie", "interco", "sdis", "securite_civile", "armee", "securite", "sante", "justice")
         if not fam and not l["stage"] and l["src"] not in ("manuel", "lycee") and l["cat"] not in categories_publiques:
             hors_perimetre += 1
             continue
