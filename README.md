@@ -1,50 +1,88 @@
-# Trouve ta voie PFMP
+# Trouve ta voie PFMP — Var
 
-Carte interactive des lieux de stage (PFMP) pour les élèves de **bac pro CIEL**
-(Cybersécurité, Informatique et réseaux, Électronique) du **LP Louise Michel de Ruffec**,
-sur l'académie de Poitiers : Charente, Charente-Maritime, Deux-Sèvres et Vienne.
+Carte interactive des entreprises et structures susceptibles d'accueillir des élèves de **bac pro CIEL**
+(Cybersécurité, Informatique et réseaux, Électronique) dans le **département du Var (83)**.
 
-Environ 8 800 entreprises et services, classés par pertinence pour le CIEL : entreprises d'informatique et d'électronique, boutiques de dépannage, sièges et grands sites qui ont un service informatique, collectivités, etc. Téléphone, e-mail et site web sont indiqués quand on les a trouvés.
+Le projet est administré par l'enseignant depuis son poste Linux. La base SQLite est stockée dans
+`database/entreprises.db` et versionnée dans ce dépôt GitHub. Les élèves consultent uniquement la carte
+statique publiée avec GitHub Pages.
 
-**Accéder à la carte :** la page GitLab Pages du dépôt (*Deploy > Pages*).
+## Accéder à la carte
 
-## Pour les élèves
-
-- Les lieux sont triés par **lien avec le référentiel du bac pro CIEL** ; chaque fiche indique les activités possibles (E1–E5, R1–R5, D1–D3).
-- Filtre par famille de métiers (SI & DSI, réseaux & télécoms, courants faibles & sûreté, électronique, cybersécurité), par pôle, par département ou autour de ta ville.
-- Coche « Avec téléphone ou e-mail » pour avoir les pistes directement exploitables.
-- ★ garde tes favoris dans ton navigateur ; « Copier la liste » les colle dans un tableur.
-- Vérifie toujours que l'entreprise existe encore avant d'appeler.
+Après activation de GitHub Pages avec la source **GitHub Actions**, la carte sera publiée à :
+https://travis4899.github.io/bacpro-ciel-lorgues-pfmp/
 
 ## Pour l'enseignant
 
-**Tout se modifie dans le tableau Grist** (table `Entreprises`, une ligne par lieu). Tu corriges la cellule directement :
-téléphone, e-mail, site, secteur, pertinence, « Stage réalisé », « Commentaire », ou tu coches « Masquer » pour retirer un lieu.
-Pour ajouter une entreprise, crée une ligne (le SIRET est facultatif, elle sera placée d'après son adresse).
-Pour retrouver un lieu, utilise Ctrl+F dans Grist avec son nom ou le SIRET affiché sur sa fiche.
+### Installer et initialiser
 
-La carte se met à jour depuis Grist : pipeline de la Forge (bouton « Exécuter le pipeline », planification nocturne, ou n8n).
+Python 3.10 ou supérieur est recommandé. Les scripts utilisent principalement la bibliothèque standard.
+Cloner le dépôt puis initialiser la base :
 
-Une fois par an, `./mettre-a-jour.sh --envoyer` recalcule les données automatiques et les fusionne dans Grist
-**sans écraser tes modifications**. Il faut Python 3 et la clé API Grist dans `~/.grist_key`.
-Détails : [docs/MAINTENANCE.md](docs/MAINTENANCE.md).
+```bash
+git clone https://github.com/travis4899/bacpro-ciel-lorgues-pfmp.git
+cd bacpro-ciel-lorgues-pfmp
+python3 -c "import sys; sys.path.insert(0, 'scripts'); from sqlite_db import connect; connect().close()"
+```
 
-## Technique
+La base est créée automatiquement dans `database/entreprises.db` si elle n'existe pas.
 
-Site statique sans CDN ni dépendance externe : HTML, CSS et JS, Leaflet embarqué, polices auto-hébergées,
-fond de carte OpenStreetMap. Données publiques : Insee SIRENE, annuaire service-public.fr,
-© contributeurs OpenStreetMap (ODbL), sites web des entreprises.
+### Gérer les entreprises
 
-## Licences
+```bash
+python3 scripts/entreprises.py liste
+python3 scripts/entreprises.py liste Draguignan
+python3 scripts/entreprises.py ajouter
+python3 scripts/entreprises.py modifier SIRET_OU_IDENTIFIANT
+python3 scripts/entreprises.py masquer SIRET_OU_IDENTIFIANT
+python3 scripts/entreprises.py afficher SIRET_OU_IDENTIFIANT
+python3 scripts/entreprises.py supprimer SIRET_OU_IDENTIFIANT
+```
 
-- **Code** (HTML, CSS, JS, scripts) : [MIT](LICENSE).
-- **Données** (`public/data/`, `exports/`) : base de données dérivée d'OpenStreetMap, donc sous
-  [ODbL](https://opendatacommons.org/licenses/odbl/) ; elle intègre aussi des données Insee SIRENE et
-  service-public.fr (Licence Ouverte 2.0).
-- Bibliothèques et polices embarquées : Leaflet (BSD-2), Leaflet.markercluster (MIT),
-  Bricolage Grotesque et IBM Plex (SIL OFL 1.1). Leurs licences sont dans `public/vendor/` et `public/fonts/`.
+Les modifications manuelles des champs issus des sources automatiques sont mémorisées dans la colonne
+`overrides` : les prochaines collectes ne les écrasent pas. Les champs de suivi (`stage`, `note`,
+masquage) restent dans SQLite et ne sont pas publiés dans la carte.
 
-## Signaler un problème
+### Mettre à jour les données automatiques
 
-Contact erroné, entreprise fermée, demande de retrait :
-[ouvrir un ticket](https://forge.apps.education.fr/bacprociel/lp-louise-michel-ruffec/Trouve_Ta_Voie_PFMP/-/issues/new).
+```bash
+./mettre-a-jour.sh
+```
+
+Le script lance la collecte, reconstruit les données automatiques, fusionne celles-ci dans SQLite puis
+génère `public/data/lieux.json` et le CSV téléchargeable. Pour forcer le rafraîchissement des sources :
+
+```bash
+./mettre-a-jour.sh --rafraichir
+```
+
+Après vérification, publie les changements :
+
+```bash
+git add database/entreprises.db public/data
+git commit -m "Mise à jour des entreprises"
+git push
+```
+
+GitHub Actions relit la base versionnée, régénère les fichiers publics et déploie uniquement le dossier
+`public/`. Le fichier SQLite n'est donc pas copié dans le site Pages, même s'il reste accessible dans
+le dépôt public.
+
+## Pour les élèves
+
+- Carte et liste interactives des entreprises.
+- Recherche par nom, ville, activité et code NAF.
+- Filtres par famille de métiers, pôle CIEL, département et distance autour d'une commune.
+- Fiches avec téléphone, e-mail et site web lorsqu'ils sont disponibles.
+- Favoris conservés dans le navigateur.
+
+## Données et confidentialité
+
+Le dépôt étant public, `database/entreprises.db` et son historique Git sont publics eux aussi.
+N'y enregistrer que des informations professionnelles que tu acceptes de rendre publiques.
+Les données publiées dans la carte sont filtrées et exportées en JSON ; la base SQLite n'est jamais
+utilisée directement par le navigateur.
+
+## Sources et licences
+
+Les sources de données et leurs licences sont indiquées dans l'interface. Code sous licence MIT.
