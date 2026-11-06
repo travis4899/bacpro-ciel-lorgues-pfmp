@@ -71,10 +71,10 @@
   }
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 
-  // lieux.json est produit à partir du tableau Grist par scripts/grist_sync.py
+  // lieux.json est exporté depuis la base SQLite par scripts/sqlite_sync.py
   Promise.all(["data/lieux.json", "data/meta.json", "data/naf.json", "data/departements.json", "data/villes.json"].map(getJSON))
     .then(start)
-    .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Ouvre la carte depuis un serveur web (GitLab Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
+    .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Ouvre la carte depuis un serveur web (GitHub Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
 
   function start([LIEUX, META, NAF, BASE, TOWNS]) {
     const CATS = META.categories, TR = META.tranches;
@@ -184,7 +184,7 @@
     $("reset").onclick = () => { try { localStorage.removeItem(STORE_FILTERS); } catch (e) { /* rien */ } location.reload(); };
 
     // ---------------------------------------------------------- carte
-    const map = L.map("map", { preferCanvas: true, zoomSnap: 0.5, minZoom: 7, maxZoom: 19 }).setView([46.1, -0.2], 8);
+    const map = L.map("map", { preferCanvas: true, zoomSnap: 0.5, minZoom: 7, maxZoom: 19 }).setView([43.49, 6.36], 9);
     map.attributionControl.setPrefix(false);
     onView = (v) => { if (v === "map") setTimeout(() => map.invalidateSize(), 0); };
     matchMedia("(max-width: 759px)").addEventListener("change", () => setTimeout(() => map.invalidateSize(), 0));
