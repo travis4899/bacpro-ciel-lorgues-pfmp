@@ -11,6 +11,7 @@ import json
 import sys
 import uuid
 from sqlite_db import connect, AUTO_FIELDS
+from config import CATEGORIES
 
 EDITABLES = {
     "nom": "Nom", "ens": "Enseigne", "adr": "Adresse", "cp": "Code postal",
@@ -43,7 +44,12 @@ def ajouter(db):
     for key in ("lat", "lon"):
         raw = input(f"{EDITABLES[key]} (vide si inconnu) : ").strip().replace(",", ".")
         values[key] = float(raw) if raw else None
-    values.update(cat="autre", src="manuel", rel=2, siege=0, approx=0, overrides="{}")
+    print("Catégories disponibles : " + ", ".join(f"{k}={v}" for k, v in CATEGORIES.items()))
+    cat = input("Catégorie [autre] : ").strip() or "autre"
+    if cat not in CATEGORIES:
+        raise SystemExit("Code catégorie inconnu.")
+    values.update(cat=cat, src="manuel", rel=2, siege=0, approx=0)
+    values["overrides"] = json.dumps({k: True for k, v in values.items() if k in AUTO_FIELDS and v not in (None, "")} | {"src": True})
     cols = list(values)
     db.execute(f"INSERT INTO entreprises ({','.join(cols)}) VALUES ({','.join('?' for _ in cols)})",
                list(values.values()))
