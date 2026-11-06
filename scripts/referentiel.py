@@ -1,5 +1,5 @@
 """Lien de chaque lieu avec le référentiel du bac pro CIEL (arrêté 2023, annexe II « Référentiel des activités
-professionnelles »). Calculé par grist_sync.py au moment de publier la carte : rien n'est stocké dans Grist.
+professionnelles »). Calculé par sqlite_sync.py au moment d'exporter la carte.
 
 Pôles et activités du référentiel :
   E  Réalisation et maintenance de produits électroniques
