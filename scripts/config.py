@@ -11,7 +11,7 @@ CACHE = ROOT / "cache"              # réponses d'API mises en cache (régénér
 PUBLIC = ROOT / "public"            # site statique publié (GitHub Pages)
 DONNEES = ROOT / "donnees"          # données automatiques produites par construire.py
 
-DEPARTEMENTS = ["83"]  # Var
+DEPARTEMENTS = ["06", "13", "83"]  # Alpes-Maritimes, Bouches-du-Rhône et Var
 
 # Tranches d'effectif INSEE -> libellé
 TRANCHES = {
