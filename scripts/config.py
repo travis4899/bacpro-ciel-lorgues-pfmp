@@ -8,10 +8,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES = ROOT / "sources"          # listes fournies par l'enseignant
 CACHE = ROOT / "cache"              # réponses d'API mises en cache (régénérables)
-PUBLIC = ROOT / "public"            # site statique publié (GitLab Pages)
-DONNEES = ROOT / "donnees"          # données automatiques (entrée de grist_push.py) + état du dernier envoi
+PUBLIC = ROOT / "public"            # site statique publié (GitHub Pages)
+DONNEES = ROOT / "donnees"          # données automatiques produites par construire.py
 
-DEPARTEMENTS = ["16", "17", "79", "86"]
+DEPARTEMENTS = ["83"]  # Var
 
 # Tranches d'effectif INSEE -> libellé
 TRANCHES = {
@@ -82,6 +82,6 @@ CATEGORIES = {
 SOURCES_LABELS = {
     "annuaire": "Liste du prof (annuaire)", "inpi": "Liste du prof (INPI)", "vrac": "Liste du prof (vrac)",
     "ajout": "Ajout automatique (SIRENE)", "osm": "Ajout OpenStreetMap",
-    "grist": "Ajout Grist (enseignant)", "vecu": "Stage réalisé (listes PFMP)", "listing": "Listing entreprises CIEL",
+    "manuel": "Ajout manuel (enseignant)", "vecu": "Stage réalisé (listes PFMP)", "listing": "Listing entreprises CIEL",
     "lycee": "Liste PFMP du lycée",
 }
