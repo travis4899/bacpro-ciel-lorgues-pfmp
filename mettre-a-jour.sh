@@ -1,13 +1,21 @@
 #!/bin/sh
-# Mise à jour annuelle des données automatiques, envoyées dans Grist sans écraser les modifications manuelles.
-#   ./mettre-a-jour.sh               -> complète le cache, reconstruit, montre ce qui changerait dans Grist
-#   ./mettre-a-jour.sh --envoyer     -> idem puis écrit dans Grist (clé dans ~/.grist_key)
-#   ./mettre-a-jour.sh --rafraichir  -> retélécharge tout depuis les API (~30 min)
+# Mise à jour locale des entreprises du Var, puis export des données destinées à la carte.
+#   ./mettre-a-jour.sh               -> collecte, construction, fusion SQLite et export JSON
+#   ./mettre-a-jour.sh --rafraichir  -> force le rafraîchissement des données sources
+# La base database/entreprises.db est versionnée dans Git : penser à la committer après mise à jour.
 set -e
-cd "$(dirname "$0")/scripts"
-case " $* " in *" --rafraichir "*) python3 collecte.py --rafraichir ;; *) python3 collecte.py ;; esac
-python3 construire.py
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+cd "$ROOT/scripts"
 case " $* " in
-  *" --envoyer "*) python3 grist_push.py && python3 grist_sync.py ;;
-  *) python3 grist_push.py --simulation; echo; echo "Pour écrire dans Grist : ./mettre-a-jour.sh --envoyer" ;;
+  *" --rafraichir "*) python3 collecte.py --rafraichir ;;
+  *) python3 collecte.py ;;
 esac
+python3 construire.py
+python3 sqlite_sync.py --sync-auto --export
+echo
+echo "Mise à jour terminée."
+echo "Vérifie la carte localement, puis commit/push la base SQLite et les fichiers générés :"
+echo "  git status"
+echo "  git add database/entreprises.db public/data"
+echo "  git commit -m \"Mise à jour des entreprises du Var\""
+echo "  git push"
