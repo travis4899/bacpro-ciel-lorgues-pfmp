@@ -142,7 +142,7 @@ def familles(l):
         if re.search(motif, nom):
             # le nom compte pour un secteur voisin (électricien, bureau d'études, commerce…) ou un NAF inconnu
             if (not naf or naf.startswith(PROCHES) or naf.startswith(_SI_MOTS_SEULEMENT)
-                    or l.get("cat") in ("grande", "public", "mairie", "interco", "sdis", "justice", "sante", "cyber", "info", "tele", "elec", "secu")):
+                    or l.get("cat") in ("grande", "public", "mairie", "interco", "sdis", "securite_civile", "armee", "securite", "justice", "sante", "cyber", "info", "tele", "elec", "secu")):
                 fam |= set(f.split())
     cat, t, tu = l.get("cat"), l.get("t") or "", l.get("tu") or ""
     grand_siege = bool(l.get("siege")) and _au_moins(tu, "32")
@@ -263,7 +263,7 @@ def validation(l):
         if (l.get("siege") and _au_moins(tu, "31")) or _au_moins(t, "32"):
             return 2, "hôpital / clinique importante : DSI ou service biomédical"
         return 1, "petit site hospitalier"
-    if cat in ("public", "mairie", "interco", "sdis", "justice", "sante"):
+    if cat in ("public", "mairie", "interco", "sdis", "securite_civile", "armee", "securite", "justice", "sante"):
         return 1, "administration sans service informatique identifié"
     # ---- entreprises privées : DSI réelle
     if naf.startswith(_SECTEURS_SI) and ((l.get("siege") and _au_moins(tu, "22")) or _au_moins(t, "22")):
