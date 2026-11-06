@@ -40,8 +40,9 @@ python3 scripts/entreprises.py supprimer SIRET_OU_IDENTIFIANT
 ```
 
 Les modifications manuelles des champs issus des sources automatiques sont mémorisées dans la colonne
-`overrides` : les prochaines collectes ne les écrasent pas. Les champs de suivi (`stage`, `note`,
-masquage) restent dans SQLite et ne sont pas publiés dans la carte.
+`overrides` : les prochaines collectes ne les écrasent pas. Les champs `stage` et `note` sont également
+exportés dans le JSON public : n'y saisir que des informations que tu acceptes de rendre publiques.
+Une fiche masquée (`masquer=1`) ou signalée absente du calcul automatique n'est pas publiée.
 
 ### Mettre à jour les données automatiques
 
