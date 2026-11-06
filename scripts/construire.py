@@ -29,8 +29,14 @@ stats = Counter()
 
 
 # ---------------------------------------------------------------- classement
-def categorie(code):
+def categorie(code, nom=""):
     c = code or ""
+    nom = nrm(nom)
+    if c == "84.25Z" or re.search(r"\bSDIS\b|SERVICE DEPARTEMENTAL D.INCENDIE", nom): return "sdis"
+    if c == "84.23Z" or re.search(r"TRIBUNAL|COUR D.APPEL|CONSEIL DE PRUD.HOMMES|JURIDICTION|JUSTICE", nom): return "justice"
+    if c == "84.11Z":
+        if re.search(r"COMMUNAUTE|AGGLOMERATION|METROPOLE|COMMUNAUTE URBAINE|SYNDICAT INTERCOMMUNAL|EPCI", nom): return "interco"
+        if re.search(r"MAIRIE|COMMUNE DE|VILLE DE|HOTEL DE VILLE", nom): return "mairie"
     if c[:2] == "62" or c[:4] in ("63.1", "58.2"): return "info"
     if c[:2] == "61" or c == "42.22Z": return "tele"
     if c == "71.12B": return "etudes"
@@ -104,7 +110,7 @@ def from_api(res, e, src):
     lon = float(e["longitude"]) if e.get("longitude") else None
     return dict(siret=e["siret"], nom=nm, ens=ens if ens.upper() != nm.upper() else "", adr=adr, cp=cp, ville=ville,
                 insee=e.get("commune") or "", naf=code, t=e.get("tranche_effectif_salarie") or "",
-                tu=res.get("tranche_effectif_salarie") or "", cat=categorie(code), src=src,
+                tu=res.get("tranche_effectif_salarie") or "", cat=categorie(code, nm), src=src,
                 siege=bool(e.get("est_siege")), lat=lat, lon=lon, approx=False)
 
 
@@ -132,7 +138,7 @@ def lire_annuaire():
             add(dict(siret=x["siret"], nom=nm, ens=ens if ens.upper() != nm.upper() else "", adr=adr,
                      cp=x["codePostalEtablissement"], ville=x["libelleCommuneEtablissement"],
                      insee=x["codeCommuneEtablissement"], naf=code, t=x["trancheEffectifsEtablissement"],
-                     tu=x["trancheEffectifsUniteLegale"], cat=categorie(code), src="annuaire",
+                     tu=x["trancheEffectifsUniteLegale"], cat=categorie(code, nm), src="annuaire",
                      siege=x["etablissementSiege"] == "true", lat=lat, lon=lon, approx=False))
 
 
@@ -185,6 +191,10 @@ def lire_naf():
         for res in json.loads(f.read_text()):
             for e in etabs_zone(res):
                 if e.get("activite_principale") != code:
+                    continue
+                nom_unite = res.get("nom_raison_sociale") or res.get("nom_complet") or ""
+                # Le code 84.11Z est très large : ne retenir que les mairies et intercommunalités.
+                if code == "84.11Z" and categorie(code, nom_unite) not in ("mairie", "interco"):
                     continue
                 t = e.get("tranche_effectif_salarie") or ""
                 if CODES_NAF[code] and t not in EMPLOYEUR:
