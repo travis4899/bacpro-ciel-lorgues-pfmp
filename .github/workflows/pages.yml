@@ -1,4 +1,4 @@
-name: Publier la carte PFMP sur GitHub Pages
+name: Publier le site sur GitHub Pages
 
 on:
   push:
@@ -20,21 +20,19 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Récupérer le dépôt
         uses: actions/checkout@v4
-      - name: Préparer Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Générer les données publiques depuis SQLite
-        run: python3 scripts/sqlite_sync.py --export
+
       - name: Configurer GitHub Pages
         uses: actions/configure-pages@v5
+
       - name: Préparer le site
         uses: actions/upload-pages-artifact@v3
         with:
           path: public/
+
       - name: Publier
         id: deployment
         uses: actions/deploy-pages@v4
