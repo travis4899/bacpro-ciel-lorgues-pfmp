@@ -259,5 +259,8 @@ h1{font:800 20px/1.1 var(--f-display);letter-spacing:-.01em;margin:0;white-space
 .edit-company{font-weight:600}
 .stage-toggle{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border:1px solid var(--stage);border-radius:999px;background:var(--stage-soft);color:var(--stage-ink);font-size:11px;cursor:pointer;white-space:nowrap}
 .stage-toggle input{accent-color:var(--stage);margin:0}
+.mask-toggle{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:var(--panel-2);color:var(--ink-2);font-size:11px;cursor:pointer;white-space:nowrap}
+.mask-toggle:has(input:checked){border-color:var(--ink-2);background:var(--panel-2);color:var(--ink)}
+.mask-toggle input{accent-color:var(--ink-2);margin:0}
 .pop .links button[data-edit]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 @media(max-width:759px){.auth-area{gap:6px;padding:10px 14px}.auth-open{padding:6px 9px;font-size:11px}.auth-user{max-width:130px}.edit-grid{grid-template-columns:1fr}.edit-grid .wide{grid-column:auto}}
