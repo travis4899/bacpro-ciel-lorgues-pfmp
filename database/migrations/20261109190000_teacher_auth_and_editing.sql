@@ -7,6 +7,10 @@ create table if not exists private.enseignants (
 );
 alter table private.enseignants enable row level security;
 revoke all on table private.enseignants from public, anon, authenticated;
+drop policy if exists "aucun acces direct a la liste enseignants" on private.enseignants;
+create policy "aucun acces direct a la liste enseignants"
+on private.enseignants for all to anon, authenticated
+using (false) with check (false);
 grant usage on schema private to authenticated;
 create or replace function private.is_teacher()
 returns boolean language sql stable security definer set search_path = ''
