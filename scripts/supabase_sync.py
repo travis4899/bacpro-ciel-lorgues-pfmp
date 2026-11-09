@@ -275,10 +275,15 @@ def print_report(events, verbose=False):
             f"({event['siret']})"
         )
         if event.get("fields"):
-            print("    Champs : " + ", ".join(event["fields"]))
+            print("    Champs envoyés / en conflit : " + ", ".join(event["fields"]))
+        if event.get("received_fields"):
+            print("    Champs récupérés : " + ", ".join(event["received_fields"]))
         if verbose:
-            for field in event.get("fields", []):
-                if field == "fiche complète":
+            detail_fields = list(dict.fromkeys(
+                event.get("fields", []) + event.get("received_fields", [])
+            ))
+            for field in detail_fields:
+                if field not in FIELDS:
                     continue
                 print(
                     f"      - {field} : "
@@ -416,6 +421,13 @@ def synchronize(db, verbose=False):
         if local_record is None:
             if state is not None:
                 conflicts.append((siret, ["suppression locale détectée (non propagée)"]))
+                events.append({
+                    "action": "CONFLIT",
+                    "siret": siret,
+                    "nom": remote.get("nom"),
+                    "fields": ["suppression locale détectée (non propagée)"],
+                    "remote": normalize_record(remote),
+                })
                 continue
             write_local(db, remote)
             save_state(db, siret, remote)
@@ -472,7 +484,8 @@ def synchronize(db, verbose=False):
                     "action": "FUSION (envoi + récupération)" if to_local else "ENVOI VERS SUPABASE",
                     "siret": siret,
                     "nom": merged.get("nom") or remote.get("nom"),
-                    "fields": to_remote + (["récupérés : " + ", ".join(to_local)] if to_local else []),
+                    "fields": to_remote,
+                    "received_fields": to_local,
                     "base": base,
                     "local": normalize_record(local_record),
                     "remote": normalize_record(remote),
