@@ -71,19 +71,75 @@
   }
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 
-  // lieux.json est exporté depuis la base SQLite par scripts/sqlite_sync.py
-  Promise.all(["data/lieux.json", "data/meta.json", "data/naf.json", "data/departements.json", "data/villes.json"].map(getJSON))
+  // La liste des lieux est lue directement dans la vue publique Supabase.
+  const SUPABASE_URL = "https://krjazwnguzynfbckilxx.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_l-qQXThzVVHPKPlJBN988A_WJuHcTqp";
+  const PAGE_SIZE = 1000;
+  async function getSupabaseRows() {
+    const fields = ["siret", "nom", "ens", "adr", "cp", "ville", "naf", "t", "tu", "cat", "src", "siege",
+      "lat", "lon", "approx", "rel", "tel", "mail", "web", "csrc", "stage", "osm_type", "note", "adeq", "poles", "acts", "fam"];
+    const endpoint = SUPABASE_URL + "/rest/v1/lieux_publics?select=" + fields.join(",") + "&order=ville.asc,nom.asc,siret.asc";
+    const headers = {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: "Bearer " + SUPABASE_PUBLISHABLE_KEY,
+      "Range-Unit": "items",
+      Prefer: "count=exact"
+    };
+    async function page(from) {
+      const response = await fetch(endpoint, {
+        headers: { ...headers, Range: from + "-" + (from + PAGE_SIZE - 1) }
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error("Supabase (" + response.status + ") : " + detail);
+      }
+      const rows = await response.json();
+      const range = response.headers.get("Content-Range") || "";
+      const match = range.match(/\/(\d+)$/);
+      return { rows, total: match ? Number(match[1]) : null };
+    }
+
+    const first = await page(0);
+    if (first.total !== null) {
+      const offsets = [];
+      for (let offset = PAGE_SIZE; offset < first.total; offset += PAGE_SIZE) offsets.push(offset);
+      const rest = [];
+      for (let i = 0; i < offsets.length; i += 4) {
+        const batch = await Promise.all(offsets.slice(i, i + 4).map(page));
+        rest.push(...batch.flatMap((part) => part.rows));
+      }
+      return first.rows.concat(rest);
+    }
+
+    // Repli si le serveur ne rend pas Content-Range accessible au navigateur.
+    const all = first.rows.slice();
+    let offset = all.length;
+    while (first.rows.length === PAGE_SIZE && offset > 0) {
+      const next = await page(offset);
+      all.push(...next.rows);
+      if (next.rows.length < PAGE_SIZE) break;
+      offset += next.rows.length;
+    }
+    return all;
+  }
+
+  Promise.all([
+    getSupabaseRows(),
+    getJSON("data/meta.json"),
+    getJSON("data/naf.json"),
+    getJSON("data/departements.json"),
+    getJSON("data/villes.json")
+  ])
     .then(start)
-    .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Ouvre la carte depuis un serveur web (GitHub Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
+    .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Vérifie la connexion à Supabase et ouvre la carte depuis un serveur web (GitHub Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
 
   function start([LIEUX, META, NAF, BASE, TOWNS]) {
     const CATS = META.categories, TR = META.tranches;
     $("maj").textContent = new Date(META.date).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
 
     // ---------------------------------------------------------- données
-    const F = Object.fromEntries(LIEUX.champs.map((c, i) => [c, i]));
-    const base = LIEUX.lieux.map((a) => { const r = {}; for (const k in F) r[k] = a[F[k]]; return r; });
-    const rows = base.map((r, i) => {
+    const rows = LIEUX.map((source, i) => {
+      const r = { ...source };
       r.i = i;
       const d2 = String(r.cp).slice(0, 2); r.dep = d2 in DEPS && d2 !== "HA" ? d2 : "HA";
       r.size = sizeOf(r.t); r.rel = +r.rel; r.adeq = +r.adeq || 0; r.poles = r.poles || ""; r.acts = r.acts || ""; r.fam = r.fam || "";
