@@ -5,7 +5,9 @@
 - Chaque enseignant possède un compte Supabase Auth individuel.
 - Une connexion ouvre une session persistante dans le navigateur ; plusieurs fiches peuvent être modifiées sans se reconnecter.
 - Les enseignants autorisés peuvent modifier le nom, l'enseigne, l'adresse, le code postal, la ville, le téléphone, l'e-mail, le site web et la note.
-- La case « Stage réalisé » est disponible directement dans la liste.
+- Les cases « Stage réalisé » et « Masqué » sont disponibles directement dans la liste.
+- Les fiches masquées sont exclues des résultats publics et de la carte. Elles restent conservées en base et peuvent être retrouvées par les enseignants avec le filtre « Afficher les fiches masquées », puis rétablies en décochant « Masqué ».
+- Le statut de masquage est synchronisé avec SQLite et protégé des mises à jour automatiques par le mécanisme des overrides.
 - Les changements sont écrits dans Supabase. Un déclencheur complète automatiquement `entreprises.overrides` pour protéger les corrections lors de la synchronisation SQLite ↔ Supabase.
 
 ## Créer un compte enseignant
