@@ -52,6 +52,16 @@ CREATE TABLE IF NOT EXISTS meta (
     cle TEXT PRIMARY KEY,
     valeur TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS sync_state (
+    siret TEXT PRIMARY KEY,
+    remote_revision INTEGER NOT NULL,
+    snapshot TEXT NOT NULL,
+    synced_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS sync_meta (
+    cle TEXT PRIMARY KEY,
+    valeur TEXT NOT NULL
+);
 INSERT OR IGNORE INTO meta(cle, valeur) VALUES ('schema_version', '1');
 """
 
