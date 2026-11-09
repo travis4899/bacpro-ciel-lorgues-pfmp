@@ -1,5 +1,5 @@
 /* Carte des stages CIEL — application (Leaflet + MarkerCluster, sans autre dépendance).
-   Les lieux publiés sont lus dans Supabase ; les petits référentiels cartographiques restent locaux. */
+   Les lieux publiés viennent de la vue Supabase ; les fiches masquées sont chargées séparément pour les enseignants autorisés. */
 (function () {
   "use strict";
 
@@ -454,7 +454,7 @@
         toast(error ? "Masquage refusé : "+error.message : "Aucune fiche modifiée : droits insuffisants");
         return;
       }
-      r.masquer=value; r._adminOnly=!!value;
+      r.masquer=value; r._adminOnly=value ? true : !!r._originMasked;
       if (!value) { createMarker(r); updateMarker(r); }
       apply();
       toast(checked ? "Fiche masquée" : "Fiche rétablie");
@@ -589,7 +589,7 @@
           hidden.forEach((source) => {
             if (known.has(source.siret)) return;
             const r = prepareRow(source, rows.length);
-            r._adminOnly = true; r.m = null;
+            r._adminOnly = true; r._originMasked = true; r.m = null;
             rows.push(r); known.add(r.siret);
           });
           maskedRowsLoaded = true;
