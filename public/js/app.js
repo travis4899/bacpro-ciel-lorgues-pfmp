@@ -343,6 +343,7 @@
       r.m.on("click", () => openFiche(r));
     });
     function updateMarker(r) {
+      r.m.setRadius(r.stage ? 10 : radius[r.rel]);
       r.m.setStyle(r.stage
         ? { radius:10, color:token("--stage"), weight:3, fillColor:col(r.cat), fillOpacity:1 }
         : { radius:radius[r.rel], color:r.rel==3 ? token("--ink") : col(r.cat), weight:r.rel==3 ? 1.5 : 1, fillColor:col(r.cat), fillOpacity:r.rel==1 ? 0.55 : 0.9 });
