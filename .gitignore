@@ -12,3 +12,7 @@ sources/*.xlsx
 database/*.db-journal
 database/*.db-wal
 database/*.db-shm
+# Secrets locaux (clés Supabase, etc.)
+.env
+.env.*
+!.env.example
