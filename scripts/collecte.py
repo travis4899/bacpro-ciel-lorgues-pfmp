@@ -148,6 +148,12 @@ if __name__ == "__main__":
         shutil.rmtree(API_DIR, ignore_errors=True)
         for f in ("osm.json", "service_public.json"):
             (CACHE / f).unlink(missing_ok=True)
+
+    # inpi() et vrac() ecrivent directement dans API_DIR, contrairement
+    # aux autres collectes qui creent leurs repertoires via cached().
+    # Le creer ici garantit aussi le fonctionnement apres --rafraichir.
+    API_DIR.mkdir(parents=True, exist_ok=True)
+
     print("Collecte…")
     geo(); inpi(); vrac(); naf(); mots_cles(); grandes(); osm(); service_public()
     print("Terminé. Étape suivante : python3 scripts/construire.py")
