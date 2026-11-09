@@ -26,7 +26,7 @@ from sqlite_db import connect
 
 TABLE = "entreprises"
 PAGE_SIZE = 1000
-BATCH_SIZE = 200
+BATCH_SIZE = 250
 
 # Champs présents à la fois dans SQLite et dans public.entreprises.
 FIELDS = (
@@ -245,6 +245,19 @@ def update_remote(db, siret, merged, revision):
     save_state(db, siret, remote)
 
 
+
+def update_remote_batch(batch):
+    """Met à jour un lot de fiches dans une seule transaction PostgreSQL via RPC."""
+    result = api_request(
+        "POST",
+        "rpc/sync_update_entreprises_batch",
+        {"p_rows": batch},
+    )
+    if not isinstance(result, dict):
+        raise SyncError("Réponse invalide de sync_update_entreprises_batch.")
+    return result.get("updated") or [], result.get("conflicts") or []
+
+
 def changed_fields(left, right):
     """Retourne les champs différents entre deux fiches normalisées."""
     if left is None:
@@ -410,166 +423,227 @@ def synchronize(db, verbose=False):
     remote_rows = fetch_remote()
     local = local_rows(db)
     states = state_rows(db)
-    print(f"Synchronisation : {len(remote_rows)} fiches distantes, {len(local)} fiches locales.")
+    total = len(remote_rows)
+    print(f"Synchronisation : {total} fiches distantes, {len(local)} fiches locales.")
+    print("Comparaison des fiches et préparation des lots…", flush=True)
 
     pulled = pushed = new_local = unchanged = 0
     conflicts = []
     events = []
+    omitted_events = 0
+    pending = []
+    processed = 0
+    MAX_EVENTS = 50
+
+    def add_event(event):
+        nonlocal omitted_events
+        if len(events) < MAX_EVENTS:
+            events.append(event)
+        else:
+            omitted_events += 1
+
+    def flush_updates():
+        nonlocal pushed
+        if not pending:
+            return
+        batch = [item["payload"] for item in pending]
+        updated_rows, conflict_sirets = update_remote_batch(batch)
+        updated_by_siret = {str(row["siret"]): row for row in updated_rows}
+
+        for item in pending:
+            siret = item["siret"]
+            remote = item["remote"]
+            local_record = item["local"]
+            merged = item["merged"]
+            base = item["base"]
+            updated = updated_by_siret.get(siret)
+
+            if updated is None:
+                message = (
+                    "Conflit de révision : la fiche distante a changé pendant "
+                    "la synchronisation (mise à jour groupée refusée)."
+                )
+                conflicts.append((siret, [message]))
+                add_event({
+                    "action": "CONFLIT DE RÉVISION",
+                    "siret": siret,
+                    "nom": local_record.get("nom") or remote.get("nom"),
+                    "fields": [message],
+                })
+                continue
+
+            write_local(db, updated)
+            save_state(db, siret, updated)
+            pushed += 1
+            if len(events) < MAX_EVENTS or verbose:
+                event = {
+                    "action": "ENVOI VERS SUPABASE",
+                    "siret": siret,
+                    "nom": merged.get("nom") or remote.get("nom"),
+                    "fields": item["fields"],
+                }
+                if verbose:
+                    event.update({
+                        "base": base,
+                        "local": normalize_record(local_record),
+                        "remote": normalize_record(remote),
+                        "result": normalize_record(merged),
+                    })
+                add_event(event)
+
+        db.commit()
+        print(
+            f"  Lots Supabase : {pushed} mise(s) à jour confirmée(s), "
+            f"{len(conflicts)} conflit(s)",
+            flush=True,
+        )
+        pending.clear()
 
     # Les fiches distantes sont fusionnées avec leur copie locale.
     for siret, remote in remote_rows.items():
         local_record = local.get(siret)
         state = states.get(siret)
+        processed += 1
+
         if local_record is None:
             if state is not None:
                 conflicts.append((siret, ["suppression locale détectée (non propagée)"]))
-                events.append({
+                add_event({
                     "action": "CONFLIT",
                     "siret": siret,
                     "nom": remote.get("nom"),
                     "fields": ["suppression locale détectée (non propagée)"],
-                    "remote": normalize_record(remote),
                 })
                 continue
             write_local(db, remote)
             save_state(db, siret, remote)
-            db.commit()
             pulled += 1
-            events.append({
+            add_event({
                 "action": "RÉCUPÉRATION",
                 "siret": siret,
                 "nom": remote.get("nom"),
                 "fields": ["fiche complète"],
-                "remote": normalize_record(remote),
             })
-            continue
-
-        if state is None:
-            # Une fiche présente avant l'activation du suivi ne doit pas être
-            # assimilée à une création locale : il faut examiner ce cas à la main.
+        elif state is None:
             conflicts.append((siret, ["aucun instantané local de référence"]))
-            events.append({
+            add_event({
                 "action": "CONFLIT",
                 "siret": siret,
                 "nom": local_record.get("nom") or remote.get("nom"),
                 "fields": ["aucun instantané local de référence"],
-                "local": normalize_record(local_record),
-                "remote": normalize_record(remote),
             })
-            continue
-
-        base = json.loads(state["snapshot"])
-        merged, fields = merge_record(siret, local_record, remote, state)
-        if fields:
-            conflicts.append((siret, fields))
-            events.append({
-                "action": "CONFLIT",
-                "siret": siret,
-                "nom": local_record.get("nom") or remote.get("nom"),
-                "fields": fields,
-                "base": base,
-                "local": normalize_record(local_record),
-                "remote": normalize_record(remote),
-            })
-            continue
-
-        remote_clean = normalize_record(remote)
-        local_changed = any(
-            not equal(merged[field], remote_clean[field])
-            for field in COMPARE_FIELDS
-        )
-        if local_changed:
-            try:
-                update_remote(db, siret, merged, int(remote["revision"]))
-                db.commit()
-                pushed += 1
-                to_remote = changed_fields(remote, merged)
-                to_local = changed_fields(local_record, merged)
-                events.append({
-                    "action": "FUSION (envoi + récupération)" if to_local else "ENVOI VERS SUPABASE",
-                    "siret": siret,
-                    "nom": merged.get("nom") or remote.get("nom"),
-                    "fields": to_remote,
-                    "received_fields": to_local,
-                    "base": base,
-                    "local": normalize_record(local_record),
-                    "remote": normalize_record(remote),
-                    "result": normalize_record(merged),
-                })
-            except SyncError as exc:
-                conflicts.append((siret, [str(exc)]))
-                events.append({
-                    "action": "CONFLIT DE RÉVISION",
+        else:
+            base = json.loads(state["snapshot"])
+            merged, fields = merge_record(siret, local_record, remote, state)
+            if fields:
+                conflicts.append((siret, fields))
+                add_event({
+                    "action": "CONFLIT",
                     "siret": siret,
                     "nom": local_record.get("nom") or remote.get("nom"),
-                    "fields": [str(exc)],
-                    "local": normalize_record(local_record),
-                    "remote": normalize_record(remote),
-                })
-        else:
-            received = changed_fields(local_record, remote)
-            if received:
-                write_local(db, remote)
-                save_state(db, siret, remote)
-                db.commit()
-                pulled += 1
-                events.append({
-                    "action": "RÉCUPÉRATION DEPUIS SUPABASE",
-                    "siret": siret,
-                    "nom": remote.get("nom") or local_record.get("nom"),
-                    "fields": received,
-                    "base": base,
-                    "local": normalize_record(local_record),
-                    "remote": normalize_record(remote),
-                    "result": normalize_record(remote),
+                    "fields": fields,
                 })
             else:
-                # Aucun changement de contenu : ne réécrit pas 30 000 fiches
-                # et ne déclenche surtout pas un commit SQLite par fiche.
-                # On actualise uniquement l'instantané si la révision distante
-                # a changé malgré des champs fonctionnels identiques.
-                if int(remote["revision"]) != int(state["remote_revision"]):
-                    save_state(db, siret, remote)
-                    db.commit()
-                unchanged += 1
+                remote_clean = normalize_record(remote)
+                local_changed = any(
+                    not equal(merged[field], remote_clean[field])
+                    for field in COMPARE_FIELDS
+                )
+                if local_changed:
+                    payload = {
+                        field: merged[field]
+                        for field in FIELDS
+                        if field not in ("siret", "updated_at")
+                    }
+                    payload["siret"] = siret
+                    payload["expected_revision"] = int(remote["revision"])
+                    pending.append({
+                        "siret": siret,
+                        "payload": payload,
+                        "local": local_record,
+                        "remote": remote,
+                        "merged": merged,
+                        "base": base,
+                        "fields": changed_fields(remote, merged),
+                    })
+                    if len(pending) >= BATCH_SIZE:
+                        flush_updates()
+                else:
+                    received = changed_fields(local_record, remote)
+                    if received:
+                        write_local(db, remote)
+                        save_state(db, siret, remote)
+                        pulled += 1
+                        add_event({
+                            "action": "RÉCUPÉRATION DEPUIS SUPABASE",
+                            "siret": siret,
+                            "nom": remote.get("nom") or local_record.get("nom"),
+                            "fields": received,
+                        })
+                    else:
+                        if int(remote["revision"]) != int(state["remote_revision"]):
+                            save_state(db, siret, remote)
+                        unchanged += 1
+
+        if processed % 500 == 0:
+            db.commit()
+            print(
+                f"  Comparaison : {processed}/{total} fiches — "
+                f"{len(pending)} en attente d'envoi — {pushed} envoyées",
+                flush=True,
+            )
+
+    flush_updates()
+    db.commit()
 
     # Les fiches créées localement depuis l'import initial sont ajoutées.
     # Une fiche suivie qui disparaît à distance n'est jamais recréée automatiquement.
+    missing_local = [
+        (siret, record)
+        for siret, record in local.items()
+        if siret not in remote_rows and siret not in states
+    ]
+    for start in range(0, len(missing_local), BATCH_SIZE):
+        batch_items = missing_local[start:start + BATCH_SIZE]
+        batch = [normalize_record(record) for _, record in batch_items]
+        result = api_request(
+            "POST", TABLE, batch, prefer="return=representation"
+        ) or []
+        if len(result) != len(batch):
+            raise SyncError(
+                f"Création locale groupée incomplète : {len(result)} confirmations "
+                f"sur {len(batch)}. Relance --sync pour reprendre."
+            )
+        for remote in result:
+            write_local(db, remote)
+            save_state(db, remote["siret"], remote)
+            new_local += 1
+            add_event({
+                "action": "NOUVELLE FICHE ENVOYÉE",
+                "siret": remote["siret"],
+                "nom": remote.get("nom"),
+                "fields": ["fiche complète"],
+            })
+        db.commit()
+        print(
+            f"  Nouvelles fiches : {new_local}/{len(missing_local)} envoyées",
+            flush=True,
+        )
+
+    # Les fiches locales suivies mais absentes à distance sont des conflits.
     for siret, local_record in local.items():
-        if siret in remote_rows:
-            continue
-        if siret in states:
+        if siret not in remote_rows and siret in states:
             conflicts.append((siret, ["fiche distante absente (suppression non propagée)"]))
-            events.append({
+            add_event({
                 "action": "CONFLIT",
                 "siret": siret,
                 "nom": local_record.get("nom"),
                 "fields": ["fiche distante absente (suppression non propagée)"],
-                "local": normalize_record(local_record),
-            })
-            continue
-        try:
-            push_new_record(db, local_record)
-            db.commit()
-            new_local += 1
-            events.append({
-                "action": "NOUVELLE FICHE ENVOYÉE",
-                "siret": siret,
-                "nom": local_record.get("nom"),
-                "fields": ["fiche complète"],
-                "local": normalize_record(local_record),
-            })
-        except SyncError as exc:
-            conflicts.append((siret, [str(exc)]))
-            events.append({
-                "action": "CONFLIT",
-                "siret": siret,
-                "nom": local_record.get("nom"),
-                "fields": [str(exc)],
-                "local": normalize_record(local_record),
             })
 
     print_report(events, verbose)
+    if omitted_events:
+        print(f"  … {omitted_events} autre(s) opération(s) non détaillée(s).")
 
     if conflicts:
         print(f"\n{len(conflicts)} conflit(s) détecté(s). Aucune résolution automatique :")
