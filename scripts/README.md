@@ -126,7 +126,7 @@ python3 scripts/entreprises.py supprimer SIRET_OU_IDENTIFIANT
 
 Ce script permet de consulter et de gérer les fiches de `database/entreprises.db`. Une fiche masquée reste dans la base mais n'est pas exportée. La suppression est définitive.
 
-## 5. Configuration et modules internes
+## 6. Configuration et modules internes
 
 Ces fichiers sont utilisés par les scripts principaux. Ils ne font pas partie de la séquence à lancer manuellement :
 
@@ -140,7 +140,7 @@ Ces fichiers sont utilisés par les scripts principaux. Ils ne font pas partie d
 | `l93.py` | Conversion de coordonnées Lambert 93 vers latitude/longitude. |
 | `naf_libelles.json` | Libellés complémentaires de codes NAF utilisés lors de la construction. |
 
-## 6. Publication du site
+## 7. Publication du site
 
 La publication est distincte de la collecte et de l'export.
 
