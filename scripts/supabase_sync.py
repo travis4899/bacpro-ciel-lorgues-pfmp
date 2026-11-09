@@ -25,7 +25,7 @@ import urllib.request
 from sqlite_db import connect
 
 TABLE = "entreprises"
-PAGE_SIZE = 500
+PAGE_SIZE = 1000
 BATCH_SIZE = 200
 
 # Champs présents à la fois dans SQLite et dans public.entreprises.
@@ -95,11 +95,13 @@ def fetch_remote():
     offset = 0
     select = ",".join(FIELDS) + ",revision"
     query = urllib.parse.urlencode({"select": select, "order": "siret.asc"})
+    print("Téléchargement des fiches Supabase…", flush=True)
     while True:
         page = api_request(
             "GET", f"{TABLE}?{query}", range_header=f"{offset}-{offset + PAGE_SIZE - 1}"
         ) or []
         rows.extend(page)
+        print(f"  {len(rows)} fiches récupérées", flush=True)
         if len(page) < PAGE_SIZE:
             break
         offset += PAGE_SIZE
@@ -431,6 +433,7 @@ def synchronize(db, verbose=False):
                 continue
             write_local(db, remote)
             save_state(db, siret, remote)
+            db.commit()
             pulled += 1
             events.append({
                 "action": "RÉCUPÉRATION",
@@ -470,13 +473,15 @@ def synchronize(db, verbose=False):
             })
             continue
 
+        remote_clean = normalize_record(remote)
         local_changed = any(
-            not equal(merged[field], normalize_record(remote)[field])
+            not equal(merged[field], remote_clean[field])
             for field in COMPARE_FIELDS
         )
         if local_changed:
             try:
                 update_remote(db, siret, merged, int(remote["revision"]))
+                db.commit()
                 pushed += 1
                 to_remote = changed_fields(remote, merged)
                 to_local = changed_fields(local_record, merged)
@@ -502,10 +507,11 @@ def synchronize(db, verbose=False):
                     "remote": normalize_record(remote),
                 })
         else:
-            write_local(db, remote)
-            save_state(db, siret, remote)
             received = changed_fields(local_record, remote)
             if received:
+                write_local(db, remote)
+                save_state(db, siret, remote)
+                db.commit()
                 pulled += 1
                 events.append({
                     "action": "RÉCUPÉRATION DEPUIS SUPABASE",
@@ -518,8 +524,14 @@ def synchronize(db, verbose=False):
                     "result": normalize_record(remote),
                 })
             else:
+                # Aucun changement de contenu : ne réécrit pas 30 000 fiches
+                # et ne déclenche surtout pas un commit SQLite par fiche.
+                # On actualise uniquement l'instantané si la révision distante
+                # a changé malgré des champs fonctionnels identiques.
+                if int(remote["revision"]) != int(state["remote_revision"]):
+                    save_state(db, siret, remote)
+                    db.commit()
                 unchanged += 1
-        db.commit()
 
     # Les fiches créées localement depuis l'import initial sont ajoutées.
     # Une fiche suivie qui disparaît à distance n'est jamais recréée automatiquement.
