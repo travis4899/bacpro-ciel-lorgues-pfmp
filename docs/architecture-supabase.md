@@ -64,6 +64,7 @@ Table de métadonnées reprenant le rôle de la table SQLite `meta`. La version 
 - La politique RLS ne laisse passer que les fiches publiables : non masquées, actives, géolocalisées, avec un nom, et rattachées au périmètre CIEL (ou aux exceptions prévues pour les stages, ajouts manuels et organismes publics ciblés).
 - Le navigateur récupère les lignes par lots de 1 000 pour respecter les limites de l'API REST.
 - Les indicateurs `adeq`, `poles`, `acts` et `fam` sont calculés dans `sqlite_sync.py` pendant `--sync-auto`, avant l'envoi vers Supabase. Ils sont donc disponibles dans la vue publique.
+- Pour recalculer ces indicateurs sur une base locale existante sans relancer la collecte : `python3 scripts/sqlite_sync.py --classify`, puis `python3 scripts/supabase_sync.py --sync`.
 - Les fichiers JSON de référence (`meta.json`, `naf.json`, `departements.json`, `villes.json`) restent locaux pour l'instant. Le gros fichier `lieux.json` n'est plus utilisé par le site ; l'export JSON est conservé comme sauvegarde pendant la transition.
 - La clé `service_role` reste exclusivement côté scripts serveur/local et ne doit jamais être intégrée au site.
 
