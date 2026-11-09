@@ -239,7 +239,7 @@ h1{font:800 20px/1.1 var(--f-display);letter-spacing:-.01em;margin:0;white-space
 
 
 /* Administration enseignant */
-.auth-area{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:var(--panel);white-space:nowrap}
+.auth-area{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:var(--panel);white-space:nowrap}
 .auth-open{padding:7px 10px;font-size:12px}
 .auth-user{font-size:11px;color:var(--ink-2);max-width:150px;overflow:hidden;text-overflow:ellipsis}
 .auth-area.is-connected .auth-user{color:var(--forte);font-weight:600}
