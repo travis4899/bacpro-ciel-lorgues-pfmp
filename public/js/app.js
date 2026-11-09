@@ -496,9 +496,9 @@
       const terms = norm(state.q).split(/\s+/).filter(Boolean);
       const t = TOWNS.find((x) => x[0] === state.town);
       current = rows.filter((r) => {
-        // Les fiches masquées disposent d'une vue d'administration dédiée : les filtres de pertinence
-        // ne doivent pas empêcher de les retrouver pour les rétablir.
-        if (r.masquer) return isTeacher && state.showMasked && terms.every((w) => r.txt.includes(w));
+        // Le filtre « fiches masquées » bascule sur une liste dédiée, sans mélanger les fiches publiées.
+        if (state.showMasked) return isTeacher && !!r.masquer && terms.every((w) => r.txt.includes(w));
+        if (r.masquer) return false;
         return state.rel.has(String(r.rel)) && state.dep.has(r.dep) && state.cat.has(r.cat) && state.size.has(r.size)
           && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
           && (!state.contact || r.hasContact)
