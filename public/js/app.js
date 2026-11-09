@@ -611,6 +611,7 @@
       if (ficheRow && current.includes(ficheRow) && ficheRow.m) openFiche(ficheRow);
     };
     function focusRow(r) {
+      if (!r.m) { if (isTeacher) openEditor(r); return; }
       if (phone()) setView("map");
       setTimeout(() => cluster.zoomToShowLayer(r.m, () => openFiche(r)), phone() ? 60 : 0);
     }
