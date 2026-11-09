@@ -239,7 +239,7 @@ h1{font:800 20px/1.1 var(--f-display);letter-spacing:-.01em;margin:0;white-space
 
 
 /* Administration enseignant */
-.auth-area{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.auth-area{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:8px;padding:12px 16px;border-top:1px solid var(--line);background:var(--panel);white-space:nowrap}
 .auth-open{padding:7px 10px;font-size:12px}
 .auth-user{font-size:11px;color:var(--ink-2);max-width:150px;overflow:hidden;text-overflow:ellipsis}
 .auth-area.is-connected .auth-user{color:var(--forte);font-weight:600}
@@ -260,4 +260,4 @@ h1{font:800 20px/1.1 var(--f-display);letter-spacing:-.01em;margin:0;white-space
 .stage-toggle{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border:1px solid var(--stage);border-radius:999px;background:var(--stage-soft);color:var(--stage-ink);font-size:11px;cursor:pointer;white-space:nowrap}
 .stage-toggle input{accent-color:var(--stage);margin:0}
 .pop .links button[data-edit]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-@media(max-width:759px){.auth-area{order:4;flex-basis:100%;justify-content:flex-end;gap:5px}.auth-open{padding:6px 7px;font-size:11px}.auth-user{max-width:90px}.tabs{order:5}.edit-grid{grid-template-columns:1fr}.edit-grid .wide{grid-column:auto}}
+@media(max-width:759px){.auth-area{gap:6px;padding:10px 14px}.auth-open{padding:6px 9px;font-size:11px}.auth-user{max-width:130px}.edit-grid{grid-template-columns:1fr}.edit-grid .wide{grid-column:auto}}
