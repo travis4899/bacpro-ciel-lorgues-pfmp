@@ -178,34 +178,25 @@ def save_state(db, siret, remote):
 
 
 def write_local(db, record):
+    """Insère ou actualise une fiche en une seule instruction SQLite."""
     clean = normalize_record(record)
-    columns = [field for field in FIELDS if field != "siret"]
     values = []
-    for field in columns:
+    for field in FIELDS:
         value = clean[field]
         if field == "overrides":
             value = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
         values.append(value)
-    exists = db.execute("SELECT 1 FROM entreprises WHERE siret=?", (clean["siret"],)).fetchone()
-    if exists:
-        assignments = ", ".join(f"{field}=?" for field in columns)
-        db.execute(
-            f"UPDATE entreprises SET {assignments} WHERE siret=?",
-            [*values, clean["siret"]],
-        )
-    else:
-        names = ",".join(FIELDS)
-        placeholders = ",".join("?" for _ in FIELDS)
-        insert_values = []
-        for field in FIELDS:
-            value = clean[field]
-            if field == "overrides":
-                value = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-            insert_values.append(value)
-        db.execute(
-            f"INSERT INTO entreprises ({names}) VALUES ({placeholders})",
-            insert_values,
-        )
+
+    columns = ",".join(FIELDS)
+    placeholders = ",".join("?" for _ in FIELDS)
+    updates = ",".join(
+        f"{field}=excluded.{field}" for field in FIELDS if field != "siret"
+    )
+    db.execute(
+        f"INSERT INTO entreprises ({columns}) VALUES ({placeholders}) "
+        f"ON CONFLICT(siret) DO UPDATE SET {updates}",
+        values,
+    )
 
 
 def push_new_record(db, local):
