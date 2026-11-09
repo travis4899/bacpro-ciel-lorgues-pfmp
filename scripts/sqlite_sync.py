@@ -2,6 +2,7 @@
 
 Usage :
   python3 scripts/sqlite_sync.py --sync-auto   # fusionne donnees/lieux_auto.json dans SQLite
+  python3 scripts/sqlite_sync.py --classify    # recalcule les indicateurs CIEL dans SQLite
   python3 scripts/sqlite_sync.py --export       # produit public/data/lieux.json et le CSV
   python3 scripts/sqlite_sync.py --sync-auto --export
 """
@@ -202,10 +203,17 @@ def export_public():
 
 if __name__ == "__main__":
     args = set(sys.argv[1:])
-    if not args or not args.intersection({"--sync-auto", "--geocode", "--export"}):
+    if not args or not args.intersection({"--sync-auto", "--classify", "--geocode", "--export"}):
         raise SystemExit(__doc__)
     if "--sync-auto" in args:
         sync_auto()
+    if "--classify" in args:
+        db = connect()
+        try:
+            classer_fiches(db)
+            db.commit()
+        finally:
+            db.close()
     if "--geocode" in args:
         geocode_missing()
     if "--export" in args:
