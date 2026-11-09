@@ -509,21 +509,21 @@
           && terms.every((w) => r.txt.includes(w)) && (!t || (r.d = dist(t[1], t[2], r.lat, r.lon)) <= state.km);
       });
       // tri : lien avec le référentiel CIEL (stages réalisés d'abord), puis pertinence, puis contact disponible
-      current.sort(t ? (a, b) => a.d - b.d || b.adeq - a.adeq
+      current.sort(t ? (a, b) => (Number.isFinite(a.d) ? a.d : Infinity) - (Number.isFinite(b.d) ? b.d : Infinity) || b.adeq - a.adeq
         : (a, b) => b.adeq - a.adeq || b.rel - a.rel || b.hasContact - a.hasContact || a.ville.localeCompare(b.ville, "fr") || a.title.localeCompare(b.title, "fr"));
       $("nres").textContent = current.length.toLocaleString("fr-FR");
       syncCats();
       hint("h-rel", state.rel, REL); hint("h-adeq", state.adeq, ADEQ); hint("h-dep", state.dep, DEPS); hint("h-cat", state.cat, CATS); hint("h-size", state.size, SIZES);
       $("h-naf").textContent = state.naf || "tous";
       $("h-contact").textContent = [state.contact && "avec contact", state.tel && "téléphone",
-        state.mail && "e-mail", state.web && "site web", state.stage && "stage réalisé"].filter(Boolean).join(", ");
+        state.mail && "e-mail", state.web && "site web", state.stage && "stage réalisé", state.showMasked && "fiches masquées"].filter(Boolean).join(", ");
       $("h-dist").textContent = t ? `${state.km} km autour de ${t[0]}` : "toutes distances";
       $("sortinfo").textContent = t ? `· du plus proche au plus loin de ${t[0]}` : "· triés par lien avec le référentiel CIEL";
       const full = (set, all) => set.size === Object.keys(all).length;
       const same = (set, def) => set.size === def.length && def.every((v) => set.has(v));
       const actifs = [!same(state.rel, DEF_REL), !full(state.dep, DEPS), !full(state.cat, CATS),
         !full(state.size, SIZES), !!state.naf, !!t,
-        state.contact, state.tel, state.mail, state.web, state.stage,
+        state.contact, state.tel, state.mail, state.web, state.stage, state.showMasked,
         state.poles.size > 0, state.fam.size > 0, !same(state.adeq, DEF_ADEQ)].filter(Boolean).length;
       $("nactive").hidden = !actifs; $("nactive").textContent = actifs;
       cluster.clearLayers(); cluster.addLayers(current.filter((r) => !r.masquer && r.m).map((r) => r.m));
