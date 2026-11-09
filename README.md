@@ -12,11 +12,12 @@ Le projet est administré par l'enseignant depuis son poste Linux. Les données 
 
 La chaîne de mise à jour est exécutée **manuellement par l'enseignant** :
 
-1. **Collecte** — interroge les sources de données et conserve les réponses dans le cache local.
-2. **Construction** — fusionne les sources, dédoublonne, classe les établissements, enrichit les contacts et prépare les données automatiques.
-3. **Synchronisation locale** — intègre les données automatiques dans SQLite, calcule les indicateurs CIEL et géocode les fiches manuelles si nécessaire.
-4. **Synchronisation Supabase** — fusionne les modifications locales et distantes, avec détection des conflits.
-5. **Publication** — un push sur la branche `main` déclenche GitHub Actions, qui publie simplement le dossier `public/`. Aucun script Python ni export SQLite n'est exécuté sur GitHub.
+1. **Synchronisation préalable** — récupère dans SQLite les modifications déjà présentes dans Supabase.
+2. **Collecte** — interroge les sources de données et conserve les réponses dans le cache local.
+3. **Construction** — fusionne les sources, dédoublonne, classe les établissements, enrichit les contacts et prépare les données automatiques.
+4. **Synchronisation locale** — intègre les données automatiques dans SQLite, calcule les indicateurs CIEL et géocode les fiches manuelles si nécessaire.
+5. **Synchronisation Supabase** — envoie les changements locaux et fusionne les modifications distantes, avec détection des conflits.
+6. **Publication** — un push sur la branche `main` déclenche GitHub Actions, qui publie simplement le dossier `public/`. Aucun script Python ni export SQLite n'est exécuté sur GitHub.
 
 Les étapes de synchronisation, collecte et construction sont regroupées dans `mettre-a-jour.sh`.
 
