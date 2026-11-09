@@ -6,7 +6,7 @@
 - SQLite (`database/entreprises.db`) reste une copie locale de travail et de secours.
 - Les scripts de collecte (`collecte.py`, `construire.py`) restent exécutés localement.
 - GitHub Pages reste l'hébergement statique du front-end.
-- La branche de développement est `migration-supabase`. La branche `main` ne doit pas être modifiée pendant cette migration.
+- La branche stable est `main`. Le développement du module d’administration se fait sur `module-administration` jusqu’à validation et fusion.
 
 ## Schéma initial déployé dans Supabase
 
@@ -86,7 +86,11 @@ Table de métadonnées reprenant le rôle de la table SQLite `meta`. La version 
 - [x] Vue/API de publication et politiques RLS.
 - [x] Lecture des lieux directement depuis Supabase dans le front-end.
 - [x] Adaptation initiale du front-end : lecture des lieux via Supabase.
-- [ ] Authentification et interface enseignant.
+- [x] Authentification individuelle Supabase Auth avec session persistante.
+- [x] Liste blanche privée des enseignants et politiques RLS de lecture/écriture.
+- [x] Édition des contacts, de l’adresse et des notes depuis la fiche.
+- [x] Bascule « Stage réalisé » directement depuis la liste.
+- [x] Conservation des corrections web dans `overrides` pour les protéger lors des synchronisations.
 
 
 ## État opérationnel de la synchronisation

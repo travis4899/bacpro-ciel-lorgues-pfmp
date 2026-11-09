@@ -59,6 +59,14 @@ Voir [la documentation des scripts](../scripts/README.md) pour les commandes per
 
 Les corrections manuelles sont protégées par le mécanisme `overrides`. Les champs `stage` et `note` sont publiés dans la vue publique : ne saisir que des informations destinées à être rendues publiques.
 
+## Modification des fiches depuis le site
+
+Les enseignants se connectent avec leur compte individuel. La session est conservée par Supabase Auth dans le navigateur jusqu’à déconnexion ou expiration. Les visiteurs non connectés restent en consultation seule.
+
+Les modifications web sont envoyées directement à Supabase. Un déclencheur ajoute automatiquement les champs modifiés à `overrides` afin que la synchronisation locale ne remplace pas ces corrections par les données automatiques.
+
+La gestion des comptes est décrite dans [Administration des enseignants](administration.md).
+
 ## Publication
 
 Après une mise à jour réussie, vérifier les modifications :
@@ -67,7 +75,7 @@ Après une mise à jour réussie, vérifier les modifications :
 git status
 ```
 
-La branche de travail actuelle est `migration-supabase`. Ne pas pousser sur `main` ni fusionner la branche sans décision explicite. La publication GitHub Pages est déclenchée par le workflow configuré sur la branche de publication.
+La branche de travail du module d’administration est `module-administration`. Ne pas pousser sur `main` ni fusionner la branche sans décision explicite. La publication GitHub Pages est déclenchée par le workflow configuré sur la branche de publication.
 
 ## Sauvegardes et confidentialité
 

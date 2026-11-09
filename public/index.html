@@ -56,6 +56,7 @@
             <label class="chip"><input type="checkbox" id="withmail"> E-mail <span class="n" id="n-mail"></span></label>
             <label class="chip"><input type="checkbox" id="withweb"> Site web <span class="n" id="n-web"></span></label>
             <label class="chip"><input type="checkbox" id="withstage"> Stage déjà réalisé <span class="n" id="n-stage"></span></label>
+            <label class="chip" id="masked-filter-wrap" hidden><input type="checkbox" id="withmasked"> Afficher les fiches masquées <span class="n" id="n-masked">0</span></label>
           </div></details>
         <details class="f"><summary>Code NAF (activité précise) <span class="hint" id="h-naf">tous</span></summary>
           <div class="fbody"><div class="row"><select id="naf-sel" aria-label="Code NAF"><option value="">Tous les codes NAF</option></select></div>
@@ -70,6 +71,11 @@
             <p>Les ★ restent dans ton navigateur uniquement. Vérifie toujours que l'entreprise existe encore avant d'appeler.</p>
           </div></details>
     </div>
+  <div class="auth-area" id="auth-area">
+    <button type="button" class="btn auth-open" id="auth-open">Connexion enseignant</button>
+    <span class="auth-user" id="auth-user" hidden></span>
+    <button type="button" class="linkbtn" id="auth-logout" hidden>Déconnexion</button>
+  </div>
       <footer class="foot">
         <nav class="foot-links" aria-label="Liens du projet">
           <a href="https://github.com/travis4899/bacpro-ciel-lorgues-pfmp" target="_blank" rel="noopener" title="Dépôt du projet" aria-label="Dépôt du projet">
@@ -132,8 +138,34 @@
     <div class="about-actions"><button class="btn primary" value="close">Fermer</button></div>
   </form>
 </dialog>
+<dialog id="auth-dialog" class="admin-dialog" aria-labelledby="auth-title">
+  <form id="auth-form" class="admin-form">
+    <h2 id="auth-title">Connexion enseignant</h2><p>Connecte-toi avec ton compte personnel pour modifier les fiches.</p>
+    <label>Adresse e-mail<input id="auth-email" type="email" autocomplete="username" required></label>
+    <label>Mot de passe<input id="auth-password" type="password" autocomplete="current-password" required></label>
+    <p class="form-error" id="auth-error" role="alert" hidden></p>
+    <div class="admin-actions"><button type="button" class="btn" id="auth-cancel">Annuler</button><button type="submit" class="btn primary" id="auth-submit">Se connecter</button></div>
+  </form>
+</dialog>
+<dialog id="edit-dialog" class="admin-dialog edit-dialog" aria-labelledby="edit-title">
+  <form id="edit-form" class="admin-form">
+    <h2 id="edit-title">Modifier la fiche</h2><p id="edit-company" class="edit-company"></p>
+    <div class="edit-grid">
+      <label>Nom de l'entreprise<input name="nom" maxlength="250" required></label>
+      <label>Enseigne / nom commercial<input name="ens" maxlength="250"></label>
+      <label class="wide">Adresse<input name="adr" maxlength="500"></label>
+      <label>Code postal<input name="cp" maxlength="10"></label><label>Ville<input name="ville" maxlength="150"></label>
+      <label>Téléphone<input name="tel" maxlength="100"></label><label>E-mail<input name="mail" type="text" maxlength="250"></label>
+      <label class="wide">Site web<input name="web" type="text" maxlength="500" placeholder="https://..."></label>
+      <label class="wide">Note / information utile<textarea name="note" rows="3" maxlength="2000"></textarea></label>
+    </div>
+    <p class="form-error" id="edit-error" role="alert" hidden></p>
+    <div class="admin-actions"><button type="button" class="btn" id="edit-cancel">Annuler</button><button type="submit" class="btn primary" id="edit-submit">Enregistrer</button></div>
+  </form>
+</dialog>
 <script src="vendor/leaflet/leaflet.js"></script>
 <script src="vendor/leaflet.markercluster/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
