@@ -206,7 +206,7 @@
     const DEF_REL = ["3"], DEF_ADEQ = ["4", "3"];
     const state = { rel: new Set(DEF_REL), dep: new Set(Object.keys(DEPS)), cat: new Set(Object.keys(CATS)),
       size: new Set(Object.keys(SIZES)), naf: "", q: "", town: "", km: 30,
-      onlyfav: false, contact: false, tel: false, mail: false, web: false, stage: false,
+      onlyfav: false, contact: false, tel: false, mail: false, web: false, stage: false, showMasked: false,
       poles: new Set(), fam: new Set(), adeq: new Set(DEF_ADEQ) };
     const saved = store.get(STORE_FILTERS, null);
     if (saved) {
@@ -280,6 +280,9 @@
       $(id).checked = state[key];
       $(id).onchange = (e) => { state[key] = e.target.checked; apply(); };
     }
+    const maskedFilterWrap = $("masked-filter-wrap"), maskedFilter = $("withmasked");
+    maskedFilter.checked = state.showMasked;
+    maskedFilter.onchange = (e) => { state.showMasked = e.target.checked; apply(); };
 
     const nafSel = $("naf-sel"), nafC = counts("naf");
     Object.keys(nafC).filter(Boolean).sort().forEach((c) => nafSel.add(new Option(`${c} · ${NAF[c] || ""} (${nafC[c]})`, c)));
@@ -336,13 +339,16 @@
         return L.divIcon({ html: `<div class="clu" style="width:${s}px;height:${s}px">${n}</div>`, className: "", iconSize: [s, s] }); } });
     map.addLayer(cluster);
     const radius = { 3: 8, 2: 6, 1: 4.5 };
-    rows.forEach((r) => {
+    function createMarker(r) {
+      if (r.m || r.lat == null || r.lon == null || !Number.isFinite(+r.lat) || !Number.isFinite(+r.lon)) return;
       r.m = L.circleMarker([r.lat, r.lon], r.stage
         ? { radius: 10, color: token("--stage"), weight: 3, fillColor: col(r.cat), fillOpacity: 1 }
         : { radius: radius[r.rel], color: r.rel == 3 ? token("--ink") : col(r.cat), weight: r.rel == 3 ? 1.5 : 1, fillColor: col(r.cat), fillOpacity: r.rel == 1 ? 0.55 : 0.9 });
       r.m.on("click", () => openFiche(r));
-    });
+    }
+    rows.forEach(createMarker);
     function updateMarker(r) {
+      if (!r.m) return;
       r.m.setRadius(r.stage ? 10 : radius[r.rel]);
       r.m.setStyle(r.stage
         ? { radius:10, color:token("--stage"), weight:3, fillColor:col(r.cat), fillOpacity:1 }
@@ -434,6 +440,22 @@
       updateMarker(r); apply(); if (ficheRow===r) openFiche(r);
       toast(checked ? "Stage réalisé enregistré" : "Stage réalisé décoché");
     }
+    async function updateMasked(r, checked, input) {
+      if (!isTeacher) { input.checked=!!r.masquer; return; }
+      input.disabled=true;
+      const value=checked ? 1 : 0;
+      const {data,error}=await supabaseClient.from("entreprises").update({masquer:value}).eq("siret",r.siret).select("siret").maybeSingle();
+      input.disabled=false;
+      if (error || !data) {
+        input.checked=!!r.masquer;
+        toast(error ? "Masquage refusé : "+error.message : "Aucune fiche modifiée : droits insuffisants");
+        return;
+      }
+      r.masquer=value; r._adminOnly=!!value;
+      if (!value) { createMarker(r); updateMarker(r); }
+      apply();
+      toast(checked ? "Fiche masquée" : "Fiche rétablie");
+    }
     document.addEventListener("click", (e) => {
       const edit=e.target.closest("[data-edit]");
       if (edit) { e.stopPropagation(); openEditor(rows[+edit.dataset.edit]); return; }
@@ -474,7 +496,8 @@
         && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
         && (!state.contact || r.hasContact)
         && (!state.tel || r.hasTel) && (!state.mail || r.hasMail) && (!state.web || r.hasWeb)
-        && (!state.stage || r.stage) && state.adeq.has(String(r.adeq))
+        && (!state.stage || r.stage) && (!r.masquer || (isTeacher && state.showMasked))
+        && state.adeq.has(String(r.adeq))
         && (!state.poles.size || [...state.poles].some((p) => r.poles.includes(p)))
         && (!state.fam.size || [...state.fam].some((f) => r.fam.includes(f)))
         && terms.every((w) => r.txt.includes(w)) && (!t || (r.d = dist(t[1], t[2], r.lat, r.lon)) <= state.km));
@@ -496,7 +519,7 @@
         state.contact, state.tel, state.mail, state.web, state.stage,
         state.poles.size > 0, state.fam.size > 0, !same(state.adeq, DEF_ADEQ)].filter(Boolean).length;
       $("nactive").hidden = !actifs; $("nactive").textContent = actifs;
-      cluster.clearLayers(); cluster.addLayers(current.map((r) => r.m));
+      cluster.clearLayers(); cluster.addLayers(current.filter((r) => !r.masquer && r.m).map((r) => r.m));
       if (ficheRow && !current.includes(ficheRow)) map.closePopup(fiche);
       if (townCircle) { map.removeLayer(townCircle); townCircle = null; }
       if (t) {
@@ -514,6 +537,7 @@
         <button class="fav" type="button" data-fav="${r.i}" aria-pressed="${favs.has(r.siret)}" aria-label="Garder en favori"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1.5l1.9 4 4.3.5-3.2 3 .9 4.3L8 11.2 4.1 13.3l.9-4.3-3.2-3 4.3-.5z" fill="currentColor"/></svg></button>
         <div class="m"><span>${esc(r.ville)} (${r.dep})</span><span>${esc(r.label)}</span><span>${REL[r.rel]}</span>
           ${isTeacher ? `<label class="stage-toggle"><input type="checkbox" data-stage="${r.i}" ${r.stage ? "checked" : ""}><span>Stage réalisé</span></label>` : (r.stage ? '<span class="stage">★ Stage réalisé</span>' : "")}
+          ${isTeacher ? `<label class="mask-toggle"><input type="checkbox" data-masquer="${r.i}" ${r.masquer ? "checked" : ""}><span>Masqué</span></label>` : ""}
           ${r.hasContact ? `<span class="ic" title="Contact disponible">${r.hasTel ? "☎" : ""}${r.hasMail ? "✉" : ""}${r.hasWeb ? "↗" : ""}</span>` : ""}
           ${r.poles ? `<span class="poles">${r.poles.split(" ").map((p) => `<span class="pole pole-${p}" title="${esc(POLES[p])}">${p}</span>`).join("")}</span>` : ""}
           ${r.stage && !isTeacher ? '<span class="stage">★ stage réalisé</span>' : ""}
@@ -524,18 +548,67 @@
     }
     listEl.addEventListener("click", (e) => {
       if (e.target.closest(".more button")) { renderMore(); return; }
-      if (e.target.closest(".fav, .stage-toggle")) return;
-      const it = e.target.closest(".item"); if (it) focusRow(rows[+it.dataset.i]);
+      if (e.target.closest(".fav, .stage-toggle, .mask-toggle")) return;
+      const it = e.target.closest(".item");
+      if (it) {
+        const r = rows[+it.dataset.i];
+        if (r.masquer && isTeacher) openEditor(r); else focusRow(r);
+      }
     });
     listEl.addEventListener("change", (e) => {
-      const input=e.target.closest("input[data-stage]"); if (!input) return;
-      e.stopPropagation(); updateStage(rows[+input.dataset.stage],input.checked,input);
+      const stageInput=e.target.closest("input[data-stage]");
+      if (stageInput) { e.stopPropagation(); updateStage(rows[+stageInput.dataset.stage],stageInput.checked,stageInput); return; }
+      const maskInput=e.target.closest("input[data-masquer]");
+      if (maskInput) { e.stopPropagation(); updateMasked(rows[+maskInput.dataset.masquer],maskInput.checked,maskInput); }
     });
     listEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { const it = e.target.closest(".item"); if (it) focusRow(rows[+it.dataset.i]); } });
-    refreshAdminUI = () => {
-      const previousShown=shown; shown=0; listEl.innerHTML=""; renderMore();
+    async function loadMaskedRows() {
+      if (!isTeacher || maskedRowsLoaded || maskedRowsLoading) return;
+      maskedRowsLoading = true;
+      const fields = "siret,nom,ens,adr,cp,ville,naf,t,tu,cat,src,siege,lat,lon,approx,rel,tel,mail,web,csrc,stage,osm_type,note,adeq,poles,acts,fam,masquer";
+      const hidden = [];
+      let offset = 0;
+      try {
+        while (true) {
+          const {data,error} = await supabaseClient.from("entreprises").select(fields)
+            .eq("masquer",1).order("siret").range(offset,offset+999);
+          if (error) throw error;
+          hidden.push(...(data || []));
+          if (!data || data.length < 1000) break;
+          offset += data.length;
+        }
+        if (isTeacher) {
+          const known = new Set(rows.map((r) => r.siret));
+          hidden.forEach((source) => {
+            if (known.has(source.siret)) return;
+            const r = prepareRow(source, rows.length);
+            r._adminOnly = true; r.m = null;
+            rows.push(r); known.add(r.siret);
+          });
+          maskedRowsLoaded = true;
+        }
+      } catch (error) {
+        toast("Chargement des fiches masquées impossible : " + error.message);
+      } finally {
+        maskedRowsLoading = false;
+      }
+    }
+    refreshAdminUI = async () => {
+      if (isTeacher) {
+        await loadMaskedRows();
+      } else {
+        for (let i=rows.length-1;i>=0;i--) if (rows[i]._adminOnly) rows.splice(i,1);
+        rows.forEach((r,i) => { r.i=i; });
+        maskedRowsLoaded = false;
+        state.showMasked = false;
+      }
+      maskedFilterWrap.hidden = !isTeacher;
+      maskedFilter.checked = state.showMasked;
+      $("n-masked").textContent = rows.filter((r) => !!r.masquer).length;
+      const previousShown=shown;
+      apply();
       while (shown<previousShown && shown<current.length) renderMore();
-      if (ficheRow) openFiche(ficheRow);
+      if (ficheRow && current.includes(ficheRow) && ficheRow.m) openFiche(ficheRow);
     };
     function focusRow(r) {
       if (phone()) setView("map");
@@ -546,5 +619,6 @@
       const it = document.querySelector(`.item[data-i="${r.i}"]`); if (it) { it.classList.add("sel"); if (!phone()) it.scrollIntoView({ block: "nearest" }); }
     }
     apply(!!state.town);
+    if (isTeacher) refreshAdminUI();
   }
 })();
