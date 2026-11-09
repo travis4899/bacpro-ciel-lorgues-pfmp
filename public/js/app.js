@@ -91,9 +91,9 @@
     const check = ++authCheck;
     authSession = session || null; isTeacher = false;
     if (authSession) {
-      const { data, error } = await supabaseClient.from("entreprises").select("siret").limit(1);
+      const { data, error } = await supabaseClient.rpc("is_enseignant");
       if (check !== authCheck) return;
-      isTeacher = !error && Array.isArray(data) && data.length > 0;
+      isTeacher = !error && data === true;
     }
     if (check !== authCheck) return;
     updateAuthControls(); refreshAdminUI();
@@ -515,7 +515,7 @@
           ${isTeacher ? `<label class="stage-toggle"><input type="checkbox" data-stage="${r.i}" ${r.stage ? "checked" : ""}><span>Stage réalisé</span></label>` : (r.stage ? '<span class="stage">★ Stage réalisé</span>' : "")}
           ${r.hasContact ? `<span class="ic" title="Contact disponible">${r.hasTel ? "☎" : ""}${r.hasMail ? "✉" : ""}${r.hasWeb ? "↗" : ""}</span>` : ""}
           ${r.poles ? `<span class="poles">${r.poles.split(" ").map((p) => `<span class="pole pole-${p}" title="${esc(POLES[p])}">${p}</span>`).join("")}</span>` : ""}
-          ${r.stage ? '<span class="stage">★ stage réalisé</span>' : ""}
+          ${r.stage && !isTeacher ? '<span class="stage">★ stage réalisé</span>' : ""}
           ${r.d != null && state.town ? `<span class="d">${r.d.toFixed(1).replace(".", ",")} km</span>` : ""}</div>
       </div>`).join("");
       listEl.insertAdjacentHTML("beforeend", html); shown += PAGE;
