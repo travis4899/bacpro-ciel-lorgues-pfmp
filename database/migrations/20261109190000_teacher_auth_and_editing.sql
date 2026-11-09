@@ -55,3 +55,5 @@ returns boolean language sql stable security invoker set search_path = ''
 as $$ select private.is_teacher(); $$;
 revoke all on function public.is_enseignant() from public, anon;
 grant execute on function public.is_enseignant() to authenticated;
+
+notify pgrst, 'reload schema';
