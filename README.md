@@ -50,8 +50,6 @@ Rafraîchissement des sources de collecte (supprime le cache des API de collecte
 
 Le script enchaîne :
 
-- `scripts/collecte.py`
-- `scripts/construire.py`
 - `scripts/supabase_sync.py --sync` (avant la collecte)
 - `scripts/collecte.py`
 - `scripts/construire.py`
