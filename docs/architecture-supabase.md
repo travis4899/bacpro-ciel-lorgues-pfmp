@@ -37,7 +37,6 @@ Table de métadonnées reprenant le rôle de la table SQLite `meta`. La version 
 ## Sécurité actuelle
 
 - RLS est activé sur les deux tables.
-- RLS est activé sur les deux tables.
 - `anon` et `authenticated` disposent uniquement d'un accès SELECT limité aux colonnes publiques de `entreprises`, nécessaire à la vue de publication ; aucun droit d'écriture ne leur est accordé.
 - La table `meta` reste privée.
 - Le rôle `service_role` conserve les droits nécessaires à la synchronisation serveur/locale.
@@ -54,6 +53,7 @@ Table de métadonnées reprenant le rôle de la table SQLite `meta`. La version 
 5. Utiliser `revision` pour détecter les modifications concurrentes ; un conflit doit être signalé, jamais écrasé silencieusement.
 6. Garder l'export JSON existant comme sauvegarde pendant la phase de transition.
 7. Conserver dans SQLite un instantané de la dernière version distante pour réaliser une fusion à trois voies.
+8. Grouper les mises à jour distantes par lots via la fonction RPC `public.sync_update_entreprises_batch(p_rows jsonb)`, avec contrôle de la révision attendue pour chaque fiche.
 
 
 ## Lecture publique du site
@@ -78,9 +78,23 @@ Table de métadonnées reprenant le rôle de la table SQLite `meta`. La version 
 - [ ] Historique de migration versionné dans le dépôt avec la Supabase CLI.
 - [x] Script de synchronisation SQLite ↔ Supabase (`scripts/supabase_sync.py`).
 - [x] Suivi local des révisions et instantanés (`sync_state`, `sync_meta`).
-- [ ] Test du script avec les vraies données locales.
-- [ ] Import initial des données SQLite.
+- [x] Import initial des données SQLite réalisé.
+- [x] Synchronisation réelle testée sur les fiches de production : changements locaux, changements distants, fusion de champs distincts et détection des conflits sur un même champ.
+- [x] Priorité vérifiée pour une correction distante explicitement protégée par `overrides`.
+- [x] Synchronisation complète vérifiée sans modification résiduelle après nettoyage des données de test.
+- [x] Mise à jour distante optimisée par lots via RPC PostgreSQL.
 - [x] Vue/API de publication et politiques RLS.
 - [x] Lecture des lieux directement depuis Supabase dans le front-end.
 - [x] Adaptation initiale du front-end : lecture des lieux via Supabase.
 - [ ] Authentification et interface enseignant.
+
+
+## État opérationnel de la synchronisation
+
+La synchronisation courante est intégrée au script organisateur `mettre-a-jour.sh` : une passe avant la collecte, puis une seconde après la construction et la mise à jour de SQLite. L'export de sauvegarde est effectué après cette seconde passe.
+
+Le script `scripts/supabase_sync.py` réalise une fusion à trois voies à partir de l'instantané local, de la fiche SQLite et de la fiche distante. Les modifications distantes et locales sur des champs différents sont fusionnées. Les conflits sur un même champ sont signalés, sauf lorsqu'une correction distante est explicitement protégée par `overrides`.
+
+Les mises à jour de fiches existantes sont envoyées par lots à la fonction RPC `public.sync_update_entreprises_batch`. Cette fonction vérifie les révisions attendues avant d'appliquer les changements. La taille des lots est actuellement de 250 fiches (`BATCH_SIZE` dans le script).
+
+Les essais de synchronisation réelle ont été effectués sur quelques fiches identifiées, puis les valeurs de test ont été nettoyées et une synchronisation finale a confirmé qu'aucune modification ne restait à réconcilier. Les tests fonctionnels ne remplacent pas une sauvegarde préalable avant une opération de maintenance importante.
