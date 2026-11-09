@@ -14,7 +14,6 @@ La synchronisation normale utilise un instantané local et le numéro de révisi
 distant pour détecter les modifications concurrentes sans écrasement silencieux.
 """
 import argparse
-import datetime as dt
 import json
 import os
 import sqlite3
@@ -23,7 +22,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from sqlite_db import DB_PATH, connect
+from sqlite_db import connect
 
 TABLE = "entreprises"
 PAGE_SIZE = 500
