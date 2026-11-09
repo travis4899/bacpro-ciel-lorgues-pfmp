@@ -495,15 +495,19 @@
     function apply(fit) {
       const terms = norm(state.q).split(/\s+/).filter(Boolean);
       const t = TOWNS.find((x) => x[0] === state.town);
-      current = rows.filter((r) => state.rel.has(String(r.rel)) && state.dep.has(r.dep) && state.cat.has(r.cat) && state.size.has(r.size)
-        && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
-        && (!state.contact || r.hasContact)
-        && (!state.tel || r.hasTel) && (!state.mail || r.hasMail) && (!state.web || r.hasWeb)
-        && (!state.stage || r.stage) && (!r.masquer || (isTeacher && state.showMasked))
-        && state.adeq.has(String(r.adeq))
-        && (!state.poles.size || [...state.poles].some((p) => r.poles.includes(p)))
-        && (!state.fam.size || [...state.fam].some((f) => r.fam.includes(f)))
-        && terms.every((w) => r.txt.includes(w)) && (!t || (r.d = dist(t[1], t[2], r.lat, r.lon)) <= state.km));
+      current = rows.filter((r) => {
+        // Les fiches masquées disposent d'une vue d'administration dédiée : les filtres de pertinence
+        // ne doivent pas empêcher de les retrouver pour les rétablir.
+        if (r.masquer) return isTeacher && state.showMasked && terms.every((w) => r.txt.includes(w));
+        return state.rel.has(String(r.rel)) && state.dep.has(r.dep) && state.cat.has(r.cat) && state.size.has(r.size)
+          && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
+          && (!state.contact || r.hasContact)
+          && (!state.tel || r.hasTel) && (!state.mail || r.hasMail) && (!state.web || r.hasWeb)
+          && (!state.stage || r.stage) && state.adeq.has(String(r.adeq))
+          && (!state.poles.size || [...state.poles].some((p) => r.poles.includes(p)))
+          && (!state.fam.size || [...state.fam].some((f) => r.fam.includes(f)))
+          && terms.every((w) => r.txt.includes(w)) && (!t || (r.d = dist(t[1], t[2], r.lat, r.lon)) <= state.km);
+      });
       // tri : lien avec le référentiel CIEL (stages réalisés d'abord), puis pertinence, puis contact disponible
       current.sort(t ? (a, b) => a.d - b.d || b.adeq - a.adeq
         : (a, b) => b.adeq - a.adeq || b.rel - a.rel || b.hasContact - a.hasContact || a.ville.localeCompare(b.ville, "fr") || a.title.localeCompare(b.title, "fr"));
