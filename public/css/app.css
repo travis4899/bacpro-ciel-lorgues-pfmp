@@ -236,3 +236,28 @@ h1{font:800 20px/1.1 var(--f-display);letter-spacing:-.01em;margin:0;white-space
 .pop .ciel ul{margin:6px 0 0;padding-left:0;list-style:none;display:grid;gap:2px;color:var(--ink-2)}
 .pop .ciel li .mono{display:inline-block;min-width:22px;color:var(--ink);font-weight:500}
 .pop .ciel .fams{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+
+
+/* Administration enseignant */
+.auth-area{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.auth-open{padding:7px 10px;font-size:12px}
+.auth-user{font-size:11px;color:var(--ink-2);max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.auth-area.is-connected .auth-user{color:var(--forte);font-weight:600}
+.admin-dialog{max-width:min(520px,calc(100vw - 28px));width:100%;padding:0;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);box-shadow:var(--shadow)}
+.admin-dialog::backdrop{background:rgba(10,20,28,.5)}
+.admin-form{display:grid;gap:12px;padding:20px}
+.admin-form h2{font:800 21px/1.2 var(--f-display);margin:0}
+.admin-form p{margin:0;color:var(--ink-2);font-size:13px}
+.admin-form label{display:grid;gap:4px;font-size:12px;font-weight:600;color:var(--ink-2)}
+.admin-form input,.admin-form textarea{width:100%;min-width:0;padding:8px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);color:var(--ink);font:400 13px var(--f-body)}
+.admin-form textarea{resize:vertical}
+.admin-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.form-error{padding:8px 10px;border-radius:6px;background:var(--stage-soft);color:var(--stage-ink)!important}
+.edit-dialog{max-width:min(700px,calc(100vw - 28px))}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.edit-grid .wide{grid-column:1/-1}
+.edit-company{font-weight:600}
+.stage-toggle{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border:1px solid var(--stage);border-radius:999px;background:var(--stage-soft);color:var(--stage-ink);font-size:11px;cursor:pointer;white-space:nowrap}
+.stage-toggle input{accent-color:var(--stage);margin:0}
+.pop .links button[data-edit]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+@media(max-width:759px){.auth-area{gap:5px}.auth-open{padding:6px 7px;font-size:11px}.auth-user{max-width:90px}.edit-grid{grid-template-columns:1fr}.edit-grid .wide{grid-column:auto}}
