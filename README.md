@@ -98,6 +98,12 @@ Une fiche masquée ou signalée absente du calcul automatique n'est pas publiée
 - Recherche par nom, ville, activité et code NAF.
 - Filtres par famille de métiers, pôle CIEL, département et distance autour d'une commune.
 - Fiches avec téléphone, e-mail et site web lorsqu'ils sont disponibles.
+- Filtres de contact indépendants : téléphone, e-mail et site web.
+- Filtre global « Au moins un moyen de contact » : téléphone, e-mail ou site web.
+- Filtre « Stage déjà réalisé » pour retrouver les structures ayant déjà accueilli un élève.
+- Les filtres de contact et de stage sont décochés à chaque nouveau chargement ; ils ne sont pas mémorisés. Les autres préférences de recherche restent conservées selon leur fonctionnement habituel.
+- Lorsque plusieurs filtres de contact sont activés, ils se cumulent : une entreprise doit satisfaire chacun des critères sélectionnés. Le filtre global, lui, accepte au moins l'un des trois moyens de contact.
+- Les compteurs affichent le nombre de fiches correspondant à chaque critère.
 - Favoris conservés dans le navigateur.
 
 ## Organisation des données
