@@ -107,7 +107,8 @@ Une fiche masquée ou signalée absente du calcul automatique n'est pas publiée
 - Favoris conservés dans le navigateur.
 - Connexion individuelle des enseignants via Supabase Auth avec session persistante.
 - Modification des coordonnées, contacts et notes par les enseignants autorisés.
-- Case « Stage réalisé » directement dans chaque résultat, réservée aux enseignants connectés.
+- Cases « Stage réalisé » et « Masqué » directement dans chaque résultat, réservées aux enseignants connectés.
+- Filtre enseignant « Afficher les fiches masquées » : affiche uniquement les fiches masquées, dans la liste et sur la carte, avec des marqueurs visuellement distincts ; elles peuvent être rétablies depuis leur fiche.
 - Les visiteurs non connectés conservent une consultation seule.
 
 ## Administration des fiches
