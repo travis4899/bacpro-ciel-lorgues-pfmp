@@ -367,6 +367,9 @@ def synchronize(db):
         local_record = local.get(siret)
         state = states.get(siret)
         if local_record is None:
+            if state is not None:
+                conflicts.append((siret, ["suppression locale détectée (non propagée)"]))
+                continue
             write_local(db, remote)
             save_state(db, siret, remote)
             pulled += 1
