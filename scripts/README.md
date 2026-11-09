@@ -63,7 +63,56 @@ python3 scripts/sqlite_sync.py --sync-auto --geocode --export
 
 L'export public ne publie pas les fiches masquées, les fiches signalées absentes du calcul automatique, ni les fiches sans coordonnées. Les règles de familles de métiers et d'évaluation CIEL sont notamment définies dans `referentiel.py`.
 
-## 4. Gérer les fiches manuellement — `entreprises.py`
+## 4. Synchroniser avec Supabase — `supabase_sync.py`
+
+La synchronisation distante est séparée de la collecte et de l'export. Elle utilise l'API REST Supabase et uniquement la bibliothèque standard Python.
+
+### Configuration
+
+Définir les variables dans le terminal qui exécute les scripts :
+
+```bash
+export SUPABASE_URL="https://krjazwnguzynfbckilxx.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY="la_cle_secrete_du_projet"
+```
+
+La clé secrète serveur peut aussi être fournie dans `SUPABASE_SECRET_KEY`. Elle ne doit jamais être inscrite dans un fichier suivi par Git, dans le JavaScript du site ou dans un dépôt public. Ne pas utiliser la clé publishable/anon pour ce script.
+
+### Premier import (une seule fois)
+
+Après avoir sauvegardé `database/entreprises.db`, lancer explicitement :
+
+```bash
+python3 scripts/supabase_sync.py --initial-import
+```
+
+Cette commande :
+- refuse de démarrer si Supabase contient des fiches absentes de SQLite ;
+- importe les fiches par lots ;
+- mémorise dans SQLite la révision distante et un instantané de chaque fiche ;
+- peut reprendre un import interrompu, après avoir vérifié que les fiches déjà présentes sont identiques.
+
+Ne pas lancer `--initial-import` avant d'avoir vérifié que SQLite contient bien les données de référence à importer.
+
+### Synchronisation courante
+
+```bash
+python3 scripts/supabase_sync.py --sync
+```
+
+La synchronisation compare l'instantané précédent, SQLite et Supabase :
+- les changements distants sont récupérés localement ;
+- les changements locaux sont envoyés au serveur ;
+- les corrections identifiées dans `overrides` restent protégées ;
+- les suppressions distantes ne sont pas propagées automatiquement ;
+- si les deux côtés ont modifié différemment le même champ, la synchronisation s'arrête et affiche le conflit.
+
+Le suivi des révisions est stocké dans les tables locales `sync_state` et `sync_meta`. Il est donc important de conserver la base SQLite et de ne pas supprimer ces tables.
+
+**À ce stade, la synchronisation n'est pas encore intégrée à `mettre-a-jour.sh`.** Elle doit d'abord être testée sur la copie locale de la base, avant toute automatisation de la collecte.
+
+## 5. Gérer les fiches manuellement — `entreprises.py`
+
 
 ```bash
 python3 scripts/entreprises.py liste
