@@ -37,13 +37,13 @@ Table de métadonnées reprenant le rôle de la table SQLite `meta`. La version 
 ## Sécurité actuelle
 
 - RLS est activé sur les deux tables.
-- Aucun accès `anon` ou `authenticated` n'est accordé pour le moment.
-- Le rôle `service_role` dispose des droits nécessaires à la synchronisation serveur/locale.
-- La fonction technique `public.rls_auto_enable()` ne peut plus être exécutée par `anon` ou `authenticated`.
+- RLS est activé sur les deux tables.
+- `anon` et `authenticated` disposent uniquement d'un accès SELECT limité aux colonnes publiques de `entreprises`, nécessaire à la vue de publication ; aucun droit d'écriture ne leur est accordé.
+- La table `meta` reste privée.
+- Le rôle `service_role` conserve les droits nécessaires à la synchronisation serveur/locale.
+- La fonction technique `public.rls_auto_enable()` ne peut pas être exécutée par `anon` ou `authenticated`.
 - Un déclencheur `private.bump_entreprise_revision()` incrémente `revision` et actualise `updated_at` à chaque modification d'une fiche.
-- Aucune politique publique ni politique enseignant n'est encore créée.
-
-Les droits de lecture publique et les droits d'administration seront ajoutés séparément, après définition de la vue de publication et du modèle d'authentification enseignant.
+- La politique publique de lecture est limitée aux fiches publiables. Les politiques d'administration enseignant restent à définir.
 
 ## Synchronisation : règles à respecter
 
@@ -72,7 +72,7 @@ Les droits de lecture publique et les droits d'administration seront ajoutés s�
 - [x] Projet Supabase créé et accessible.
 - [x] Structure PostgreSQL initiale créée.
 - [x] RLS activé sur les tables.
-- [x] Accès publics et authentifiés fermés par défaut.
+- [x] Lecture publique limitée aux colonnes et fiches publiables ; aucun droit d'écriture public.
 - [x] Exécution publique de la fonction automatique RLS révoquée.
 - [ ] Historique de migration versionné dans le dépôt avec la Supabase CLI.
 - [x] Script de synchronisation SQLite ↔ Supabase (`scripts/supabase_sync.py`).
@@ -81,5 +81,5 @@ Les droits de lecture publique et les droits d'administration seront ajoutés s�
 - [ ] Import initial des données SQLite.
 - [x] Vue/API de publication et politiques RLS.
 - [x] Lecture des lieux directement depuis Supabase dans le front-end.
-- [ ] Adaptation du front-end.
+- [x] Adaptation initiale du front-end : lecture des lieux via Supabase.
 - [ ] Authentification et interface enseignant.
