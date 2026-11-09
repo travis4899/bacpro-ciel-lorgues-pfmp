@@ -243,6 +243,52 @@ def update_remote(db, siret, merged, revision):
     save_state(db, siret, remote)
 
 
+def changed_fields(left, right):
+    """Retourne les champs différents entre deux fiches normalisées."""
+    if left is None:
+        return list(COMPARE_FIELDS)
+    left_clean = normalize_record(left)
+    right_clean = normalize_record(right)
+    return [
+        field for field in COMPARE_FIELDS
+        if not equal(left_clean[field], right_clean[field])
+    ]
+
+
+def display_value(value, limit=100):
+    """Formate une valeur pour le compte rendu sans produire de ligne interminable."""
+    rendered = json.dumps(value, ensure_ascii=False, sort_keys=True)
+    if len(rendered) > limit:
+        return rendered[:limit - 1] + "…"
+    return rendered
+
+
+def print_report(events, verbose=False):
+    """Affiche les fiches modifiées et, sur demande, le détail des valeurs."""
+    if not events:
+        print("\\nAucune fiche modifiée.")
+        return
+    print("\\nDétail des opérations :")
+    for event in events:
+        print(
+            f"  [{event['action']}] {event.get('nom') or '(sans nom)'} "
+            f"({event['siret']})"
+        )
+        if event.get("fields"):
+            print("    Champs : " + ", ".join(event["fields"]))
+        if verbose:
+            for field in event.get("fields", []):
+                if field == "fiche complète":
+                    continue
+                print(
+                    f"      - {field} : "
+                    f"base={display_value(event.get('base', {}).get(field))} | "
+                    f"local={display_value(event.get('local', {}).get(field))} | "
+                    f"distant={display_value(event.get('remote', {}).get(field))} | "
+                    f"résultat={display_value(event.get('result', {}).get(field))}"
+                )
+
+
 def merge_record(siret, local, remote, state):
     """Fusion à trois voies : instantané précédent, copie locale, version distante."""
     base = json.loads(state["snapshot"])
@@ -344,7 +390,7 @@ def initial_import(db):
     )
 
 
-def synchronize(db):
+def synchronize(db, verbose=False):
     marker = db.execute(
         "SELECT valeur FROM sync_meta WHERE cle='initial_import_done'"
     ).fetchone()
@@ -361,6 +407,7 @@ def synchronize(db):
 
     pulled = pushed = new_local = unchanged = 0
     conflicts = []
+    events = []
 
     # Les fiches distantes sont fusionnées avec leur copie locale.
     for siret, remote in remote_rows.items():
@@ -373,17 +420,42 @@ def synchronize(db):
             write_local(db, remote)
             save_state(db, siret, remote)
             pulled += 1
+            events.append({
+                "action": "RÉCUPÉRATION",
+                "siret": siret,
+                "nom": remote.get("nom"),
+                "fields": ["fiche complète"],
+                "remote": normalize_record(remote),
+            })
             continue
 
         if state is None:
             # Une fiche présente avant l'activation du suivi ne doit pas être
             # assimilée à une création locale : il faut examiner ce cas à la main.
             conflicts.append((siret, ["aucun instantané local de référence"]))
+            events.append({
+                "action": "CONFLIT",
+                "siret": siret,
+                "nom": local_record.get("nom") or remote.get("nom"),
+                "fields": ["aucun instantané local de référence"],
+                "local": normalize_record(local_record),
+                "remote": normalize_record(remote),
+            })
             continue
 
+        base = json.loads(state["snapshot"])
         merged, fields = merge_record(siret, local_record, remote, state)
         if fields:
             conflicts.append((siret, fields))
+            events.append({
+                "action": "CONFLIT",
+                "siret": siret,
+                "nom": local_record.get("nom") or remote.get("nom"),
+                "fields": fields,
+                "base": base,
+                "local": normalize_record(local_record),
+                "remote": normalize_record(remote),
+            })
             continue
 
         local_changed = any(
@@ -394,16 +466,44 @@ def synchronize(db):
             try:
                 update_remote(db, siret, merged, int(remote["revision"]))
                 pushed += 1
+                to_remote = changed_fields(remote, merged)
+                to_local = changed_fields(local_record, merged)
+                events.append({
+                    "action": "FUSION (envoi + récupération)" if to_local else "ENVOI VERS SUPABASE",
+                    "siret": siret,
+                    "nom": merged.get("nom") or remote.get("nom"),
+                    "fields": to_remote + (["récupérés : " + ", ".join(to_local)] if to_local else []),
+                    "base": base,
+                    "local": normalize_record(local_record),
+                    "remote": normalize_record(remote),
+                    "result": normalize_record(merged),
+                })
             except SyncError as exc:
                 conflicts.append((siret, [str(exc)]))
+                events.append({
+                    "action": "CONFLIT DE RÉVISION",
+                    "siret": siret,
+                    "nom": local_record.get("nom") or remote.get("nom"),
+                    "fields": [str(exc)],
+                    "local": normalize_record(local_record),
+                    "remote": normalize_record(remote),
+                })
         else:
             write_local(db, remote)
             save_state(db, siret, remote)
-            if any(
-                not equal(normalize_record(local_record)[field], normalize_record(remote)[field])
-                for field in COMPARE_FIELDS
-            ):
+            received = changed_fields(local_record, remote)
+            if received:
                 pulled += 1
+                events.append({
+                    "action": "RÉCUPÉRATION DEPUIS SUPABASE",
+                    "siret": siret,
+                    "nom": remote.get("nom") or local_record.get("nom"),
+                    "fields": received,
+                    "base": base,
+                    "local": normalize_record(local_record),
+                    "remote": normalize_record(remote),
+                    "result": normalize_record(remote),
+                })
             else:
                 unchanged += 1
         db.commit()
@@ -420,8 +520,24 @@ def synchronize(db):
             push_new_record(db, local_record)
             db.commit()
             new_local += 1
+            events.append({
+                "action": "NOUVELLE FICHE ENVOYÉE",
+                "siret": siret,
+                "nom": local_record.get("nom"),
+                "fields": ["fiche complète"],
+                "local": normalize_record(local_record),
+            })
         except SyncError as exc:
             conflicts.append((siret, [str(exc)]))
+            events.append({
+                "action": "CONFLIT",
+                "siret": siret,
+                "nom": local_record.get("nom"),
+                "fields": [str(exc)],
+                "local": normalize_record(local_record),
+            })
+
+    print_report(events, verbose)
 
     if conflicts:
         print(f"\n{len(conflicts)} conflit(s) détecté(s). Aucune résolution automatique :")
@@ -429,6 +545,11 @@ def synchronize(db):
             print(f"  - {siret} : {', '.join(fields)}")
         if len(conflicts) > 40:
             print(f"  ... et {len(conflicts) - 40} autre(s).")
+        print(
+            f"Bilan partiel : {pulled} récupération(s), {pushed} mise(s) à jour distante(s), "
+            f"{new_local} nouvelle(s) fiche(s) envoyée(s), {unchanged} inchangée(s), "
+            f"{len(conflicts)} conflit(s)."
+        )
         raise SyncError("Synchronisation incomplète : corrige les conflits puis relance --sync.")
 
     print(
@@ -445,6 +566,8 @@ def main():
                       help="importe explicitement SQLite si Supabase est vide")
     mode.add_argument("--sync", action="store_true",
                       help="fusionne SQLite et Supabase avec détection des conflits")
+    parser.add_argument("--verbose", action="store_true",
+                        help="affiche les valeurs avant/après pour chaque champ modifié")
     args = parser.parse_args()
 
     try:
@@ -454,7 +577,7 @@ def main():
             if args.initial_import:
                 initial_import(db)
             else:
-                synchronize(db)
+                synchronize(db, verbose=args.verbose)
         finally:
             db.close()
     except (SyncError, sqlite3.Error) as exc:
