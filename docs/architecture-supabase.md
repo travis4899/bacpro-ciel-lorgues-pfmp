@@ -55,6 +55,18 @@ Les droits de lecture publique et les droits d'administration seront ajoutés s�
 6. Garder l'export JSON existant comme sauvegarde pendant la phase de transition.
 7. Conserver dans SQLite un instantané de la dernière version distante pour réaliser une fusion à trois voies.
 
+
+## Lecture publique du site
+
+- Le front-end GitHub Pages interroge directement la vue `public.lieux_publics` avec une clé **publishable** (publique, prévue pour le navigateur).
+- La vue est en `security_invoker = true` et s'appuie sur la politique RLS de `public.entreprises`.
+- Le rôle `anon` ne reçoit que les droits de lecture sur les colonnes affichables. Les colonnes internes (`overrides`, `masquer`, `statut_auto`, `revision`, etc.) ne sont pas exposées.
+- La politique RLS ne laisse passer que les fiches publiables : non masquées, actives, géolocalisées, avec un nom, et rattachées au périmètre CIEL (ou aux exceptions prévues pour les stages, ajouts manuels et organismes publics ciblés).
+- Le navigateur récupère les lignes par lots de 1 000 pour respecter les limites de l'API REST.
+- Les indicateurs `adeq`, `poles`, `acts` et `fam` sont calculés dans `sqlite_sync.py` pendant `--sync-auto`, avant l'envoi vers Supabase. Ils sont donc disponibles dans la vue publique.
+- Les fichiers JSON de référence (`meta.json`, `naf.json`, `departements.json`, `villes.json`) restent locaux pour l'instant. Le gros fichier `lieux.json` n'est plus utilisé par le site ; l'export JSON est conservé comme sauvegarde pendant la transition.
+- La clé `service_role` reste exclusivement côté scripts serveur/local et ne doit jamais être intégrée au site.
+
 ## État de l'avancement
 
 - [x] Projet Supabase créé et accessible.
@@ -67,6 +79,7 @@ Les droits de lecture publique et les droits d'administration seront ajoutés s�
 - [x] Suivi local des révisions et instantanés (`sync_state`, `sync_meta`).
 - [ ] Test du script avec les vraies données locales.
 - [ ] Import initial des données SQLite.
-- [ ] Vue/API de publication et politiques RLS.
+- [x] Vue/API de publication et politiques RLS.
+- [x] Lecture des lieux directement depuis Supabase dans le front-end.
 - [ ] Adaptation du front-end.
 - [ ] Authentification et interface enseignant.
