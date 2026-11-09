@@ -70,6 +70,27 @@ def geocode_missing():
     print(f"Géocodage SQLite : {count} adresse(s) positionnée(s).")
 
 
+def classer_fiches(db):
+    """Calcule et mémorise les indicateurs CIEL avant la synchronisation Supabase."""
+    rows = db.execute("SELECT * FROM entreprises").fetchall()
+    for row in rows:
+        item = dict(row)
+        adeq, poles, acts = evaluer(item)
+        fam = " ".join(k for k in FAMILLES if k in familles(item))
+        overrides = json.loads(item.get("overrides") or "{}")
+        values = {
+            "adeq": overrides.get("adeq", adeq),
+            "poles": overrides.get("poles", poles),
+            "acts": overrides.get("acts", acts),
+            "fam": overrides.get("fam", fam),
+        }
+        db.execute(
+            "UPDATE entreprises SET adeq=?, poles=?, acts=?, fam=? WHERE siret=?",
+            (values["adeq"], values["poles"], values["acts"], values["fam"], item["siret"]),
+        )
+    print(f"Classification CIEL : {len(rows)} fiches calculées.")
+
+
 def sync_auto():
     from config import DONNEES
     path = DONNEES / "lieux_auto.json"
@@ -120,12 +141,16 @@ def sync_auto():
             if old["siret"] not in seen and old["src"] != "manuel" and not old["statut_auto"]:
                 db.execute("UPDATE entreprises SET statut_auto=? WHERE siret=?",
                            (f"Absent du calcul automatique depuis {now}", old["siret"]))
+        # Les champs de classement sont calculés avant l'envoi vers Supabase.
+        classer_fiches(db)
     db.close()
     print(f"SQLite : {inserted} ajouts, {updated} fiches actualisées, {preserved} champs manuels préservés.")
 
 
 def export_public():
     db = connect()
+    classer_fiches(db)
+    db.commit()
     records = db.execute(
         "SELECT * FROM entreprises WHERE masquer=0 AND statut_auto='' ORDER BY ville, nom"
     ).fetchall()
@@ -137,14 +162,12 @@ def export_public():
         if l["lat"] is None or l["lon"] is None:
             sans_position.append(l["nom"] or l["ens"])
             continue
-        l["adeq"], l["poles"], l["acts"] = evaluer(l)
-        fam = familles(l)
+        # Les indicateurs CIEL ont été calculés et mémorisés avant la synchro Supabase.
         # Les organismes publics ciblés restent visibles même sans famille métier CIEL détectée.
         categories_publiques = ("mairie", "interco", "sdis", "securite_civile", "armee", "securite", "sante", "justice")
-        if not fam and not l["stage"] and l["src"] not in ("manuel", "lycee") and l["cat"] not in categories_publiques:
+        if not l["fam"] and not l["stage"] and l["src"] not in ("manuel", "lycee") and l["cat"] not in categories_publiques:
             hors_perimetre += 1
             continue
-        l["fam"] = " ".join(k for k in FAMILLES if k in fam)
         lieux.append(l)
     db.close()
 
