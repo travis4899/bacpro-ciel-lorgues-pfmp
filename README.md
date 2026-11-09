@@ -2,7 +2,7 @@
 
 Carte interactive des entreprises et structures susceptibles d'accueillir des élèves de **bac pro CIEL** (Cybersécurité, Informatique et réseaux, Électronique) dans les départements **06 (Alpes-Maritimes), 13 (Bouches-du-Rhône) et 83 (Var)**.
 
-Le projet est administré par l'enseignant depuis son poste Linux. Les données sont collectées et préparées localement, conservées dans une base SQLite, puis exportées en fichiers statiques pour les élèves. Le site est publié avec GitHub Pages.
+Le projet est administré par l'enseignant depuis son poste Linux. Les données sont collectées et préparées localement ; Supabase est la base centrale et SQLite reste une copie locale de travail et de secours. Le site est publié avec GitHub Pages et lit les fiches publiées directement dans Supabase.
 
 ## Accéder à la carte
 
@@ -14,10 +14,11 @@ La chaîne de mise à jour est exécutée **manuellement par l'enseignant** :
 
 1. **Collecte** — interroge les sources de données et conserve les réponses dans le cache local.
 2. **Construction** — fusionne les sources, dédoublonne, classe les établissements, enrichit les contacts et prépare les données automatiques.
-3. **Synchronisation SQLite et export** — intègre les données automatiques dans la base en préservant les corrections manuelles, puis produit les fichiers destinés au site.
-4. **Publication** — un push sur la branche `main` déclenche GitHub Actions, qui publie simplement le dossier `public/`. Aucun script Python ni export SQLite n'est exécuté sur GitHub.
+3. **Synchronisation locale** — intègre les données automatiques dans SQLite, calcule les indicateurs CIEL et géocode les fiches manuelles si nécessaire.
+4. **Synchronisation Supabase** — fusionne les modifications locales et distantes, avec détection des conflits.
+5. **Publication** — un push sur la branche `main` déclenche GitHub Actions, qui publie simplement le dossier `public/`. Aucun script Python ni export SQLite n'est exécuté sur GitHub.
 
-Les trois premières étapes sont regroupées dans `mettre-a-jour.sh`.
+Les étapes de synchronisation, collecte et construction sont regroupées dans `mettre-a-jour.sh`.
 
 ## Pour l'enseignant
 
@@ -51,7 +52,12 @@ Le script enchaîne :
 
 - `scripts/collecte.py`
 - `scripts/construire.py`
-- `scripts/sqlite_sync.py --sync-auto --geocode --export`
+- `scripts/supabase_sync.py --sync` (avant la collecte)
+- `scripts/collecte.py`
+- `scripts/construire.py`
+- `scripts/sqlite_sync.py --sync-auto --geocode` (dont le calcul des indicateurs CIEL)
+- `scripts/supabase_sync.py --sync` (après la collecte)
+- `scripts/sqlite_sync.py --export` (export de sauvegarde JSON/CSV)
 
 Le détail des scripts, de leurs options et des fichiers produits est décrit dans [scripts/README.md](scripts/README.md).
 
@@ -83,7 +89,7 @@ python3 scripts/entreprises.py afficher SIRET_OU_IDENTIFIANT
 python3 scripts/entreprises.py supprimer SIRET_OU_IDENTIFIANT
 ```
 
-Les corrections manuelles sont conservées dans la colonne `overrides` et ne sont pas écrasées par les prochaines synchronisations automatiques. Les champs `stage` et `note` sont exportés dans le JSON public : ne saisir que des informations destinées à être rendues publiques.
+Les corrections manuelles sont conservées dans la colonne `overrides` et ne sont pas écrasées par les prochaines synchronisations automatiques. Les champs `stage` et `note` sont visibles dans la vue publique Supabase : ne saisir que des informations destinées à être rendues publiques.
 
 Une fiche masquée ou signalée absente du calcul automatique n'est pas publiée.
 
@@ -103,14 +109,14 @@ Une fiche masquée ou signalée absente du calcul automatique n'est pas publiée
 | `cache/` | Réponses d'API et caches d'enrichissement locaux, régénérables. |
 | `donnees/lieux_auto.json` | Résultat intermédiaire de la construction automatique. |
 | `database/entreprises.db` | Base SQLite de référence, avec les fiches et corrections manuelles. |
-| `public/data/` | JSON et CSV consommés par le site publié. |
+| `public/data/` | Référentiels JSON et exports JSON/CSV conservés comme sauvegarde. |
 | `public/` | Site statique publié par GitHub Pages. |
 
 ## Données et confidentialité
 
 Le dépôt est public : la base `database/entreprises.db`, les fichiers du site et leur historique Git sont donc accessibles publiquement. N'y enregistrer que des informations professionnelles que tu acceptes de rendre publiques.
 
-La carte utilise les fichiers JSON exportés dans `public/data/`. Le navigateur ne se connecte pas directement à SQLite.
+La carte lit les fiches dans la vue Supabase `public.lieux_publics`, avec une clé publishable et les règles RLS. Les fichiers JSON locaux encore chargés par le site ne contiennent que des référentiels secondaires (NAF, communes, contours et métadonnées) ; `lieux.json` est conservé comme sauvegarde et n'est plus la source principale du site. La clé `service_role` ne doit jamais être intégrée au navigateur.
 
 ## Sources et licences
 
