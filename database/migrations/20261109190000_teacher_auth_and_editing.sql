@@ -43,3 +43,11 @@ drop trigger if exists trg_entreprises_capture_teacher_overrides on public.entre
 create trigger trg_entreprises_capture_teacher_overrides before update on public.entreprises
 for each row execute function private.capture_teacher_overrides();
 comment on table private.enseignants is 'Liste blanche des comptes Supabase autorisés à modifier les fiches Stage Explorer.';
+
+-- Fonction RPC minimale pour que l'interface sache si le compte connecté
+-- appartient à la liste blanche, sans exposer la table privée.
+create or replace function public.is_enseignant()
+returns boolean language sql stable security invoker set search_path = ''
+as $$ select private.is_teacher(); $$;
+revoke all on function public.is_enseignant() from public, anon;
+grant execute on function public.is_enseignant() to authenticated;
