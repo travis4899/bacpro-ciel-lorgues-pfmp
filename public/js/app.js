@@ -185,11 +185,12 @@
     $("maj").textContent = new Date(META.date).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
 
     // ---------------------------------------------------------- données
-    const rows = LIEUX.map((source, i) => {
+    function prepareRow(source, i) {
       const r = { ...source };
       r.i = i;
       const d2 = String(r.cp).slice(0, 2); r.dep = d2 in DEPS && d2 !== "HA" ? d2 : "HA";
       r.size = sizeOf(r.t); r.rel = +r.rel; r.adeq = +r.adeq || 0; r.poles = r.poles || ""; r.acts = r.acts || ""; r.fam = r.fam || "";
+      r.masquer = +r.masquer || 0;
       r.title = r.ens || r.nom; r.osm = /^(osm|grist)/.test(String(r.siret));
       r.label = NAF[r.naf] || r.osm_type || CATS[r.cat];
       r.hasTel = !!String(r.tel || "").trim();
@@ -198,7 +199,9 @@
       r.hasContact = r.hasTel || r.hasMail || r.hasWeb;
       r.txt = norm([r.nom, r.ens, r.ville, r.cp, r.naf, String(r.naf).replace(".", ""), r.label, CATS[r.cat]].join(" "));
       return r;
-    });
+    }
+    const rows = LIEUX.map(prepareRow);
+    let maskedRowsLoaded = false, maskedRowsLoading = false;
     let favs = new Set(store.get(STORE_FAVS, []));
 
     // ---------------------------------------------------------- état des filtres
