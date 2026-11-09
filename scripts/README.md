@@ -6,7 +6,19 @@ Les scripts sont exécutés localement par l'enseignant. La commande habituelle 
 ./mettre-a-jour.sh
 ```
 
-Ce script orchestre les trois étapes ci-dessous. Il n'est pas nécessaire de les lancer séparément pour une mise à jour normale.
+Le script organisateur effectue une synchronisation préalable avec Supabase, la collecte et la construction des données, une seconde synchronisation après mise à jour de SQLite, puis l'export public. Il n'est pas nécessaire de lancer ces étapes séparément pour une mise à jour normale.
+
+Options disponibles :
+
+```bash
+./mettre-a-jour.sh --rafraichir
+./mettre-a-jour.sh --verbose
+./mettre-a-jour.sh --rafraichir --verbose
+```
+
+- `--rafraichir` force le rafraîchissement des données sources.
+- `--verbose` affiche les valeurs détaillées lors des synchronisations Supabase.
+- En cas d'erreur de synchronisation ou de conflit, le script s'arrête immédiatement : la collecte et l'export ne sont pas poursuivis avec une copie locale potentiellement incohérente.
 
 ## 1. Collecter les données — `collecte.py`
 
@@ -63,7 +75,79 @@ python3 scripts/sqlite_sync.py --sync-auto --geocode --export
 
 L'export public ne publie pas les fiches masquées, les fiches signalées absentes du calcul automatique, ni les fiches sans coordonnées. Les règles de familles de métiers et d'évaluation CIEL sont notamment définies dans `referentiel.py`.
 
-## 4. Gérer les fiches manuellement — `entreprises.py`
+## 4. Synchroniser avec Supabase — `supabase_sync.py`
+
+Supabase est la base centrale. SQLite est la copie de travail locale, utilisée par les scripts de collecte, de gestion et d'export. La synchronisation utilise l'API REST Supabase et uniquement la bibliothèque standard Python.
+
+### Configuration
+
+Définir les variables dans le terminal qui exécute les scripts :
+
+```bash
+export SUPABASE_URL="https://krjazwnguzynfbckilxx.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY="la_cle_secrete_du_projet"
+```
+
+La clé secrète serveur peut aussi être fournie dans `SUPABASE_SECRET_KEY`. Elle ne doit jamais être inscrite dans un fichier suivi par Git, dans le JavaScript du site ou dans un dépôt public. Ne pas utiliser la clé publishable/anon pour ce script.
+
+### Premier import (une seule fois)
+
+Après avoir sauvegardé `database/entreprises.db`, lancer explicitement :
+
+```bash
+python3 scripts/supabase_sync.py --initial-import
+```
+
+Cette commande :
+- refuse de démarrer si Supabase contient des fiches absentes de SQLite ;
+- importe les fiches par lots ;
+- mémorise dans SQLite la révision distante et un instantané de chaque fiche ;
+- peut reprendre un import interrompu, après avoir vérifié que les fiches déjà présentes sont identiques.
+
+Ne pas lancer `--initial-import` avant d'avoir vérifié que SQLite contient bien les données de référence à importer.
+
+### Synchronisation courante
+
+```bash
+python3 scripts/supabase_sync.py --sync
+python3 scripts/supabase_sync.py --sync --verbose
+```
+
+La synchronisation compare l'instantané précédent, SQLite et Supabase :
+- les changements distants sont récupérés localement ;
+- les changements locaux sont envoyés au serveur ;
+- les corrections identifiées dans `overrides` restent protégées ;
+- les suppressions locales ou distantes ne sont pas propagées automatiquement : elles sont signalées comme conflits ;
+- si les deux côtés ont modifié différemment le même champ, la synchronisation s'arrête et affiche le conflit.
+
+Par défaut, le compte rendu affiche les fiches touchées, leur SIRET, le sens de l'opération et les champs concernés. L'option `--verbose` ajoute les valeurs de référence, locale, distante et fusionnée. Les fiches inchangées ne sont pas détaillées ; leur nombre reste indiqué dans le bilan.
+
+Même si des conflits sont détectés, le compte rendu liste les opérations déjà réalisées et affiche un bilan partiel : les changements réussis ne sont pas annulés automatiquement. Il faut corriger les conflits puis relancer la synchronisation.
+
+Le suivi des révisions est stocké dans les tables locales `sync_state` et `sync_meta`. Il est donc important de conserver la base SQLite et de ne pas supprimer ces tables.
+
+### Ordre d'exécution du script organisateur
+
+`mettre-a-jour.sh` effectue les opérations dans cet ordre :
+
+1. synchronisation SQLite ↔ Supabase avant toute collecte ;
+2. collecte des données sources ;
+3. construction des données automatiques et mise à jour de SQLite, puis géocodage ;
+4. synchronisation SQLite ↔ Supabase pour envoyer les nouvelles données et actualisations ;
+5. export des données publiques depuis SQLite synchronisée.
+
+La synchronisation préalable évite de travailler sur une copie locale en retard. La synchronisation finale envoie à Supabase les éventuelles nouveautés issues de la collecte. L'export est volontairement placé après cette seconde synchronisation afin de publier l'état local confirmé.
+
+Le script s'arrête en cas d'échec ou de conflit de synchronisation. Il ne faut pas poursuivre la publication tant que le conflit n'a pas été traité.
+
+Les tests unitaires des règles de fusion peuvent être lancés sans connexion Supabase :
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 -m py_compile scripts/supabase_sync.py scripts/sqlite_db.py
+```
+
+## 5. Gérer les fiches manuellement — `entreprises.py`
 
 ```bash
 python3 scripts/entreprises.py liste
@@ -75,9 +159,9 @@ python3 scripts/entreprises.py afficher SIRET_OU_IDENTIFIANT
 python3 scripts/entreprises.py supprimer SIRET_OU_IDENTIFIANT
 ```
 
-Ce script permet de consulter et de gérer les fiches de `database/entreprises.db`. Une fiche masquée reste dans la base mais n'est pas exportée. La suppression est définitive.
+Ce script permet de consulter et de gérer les fiches de `database/entreprises.db`. Une fiche masquée reste dans la base mais n'est pas exportée. La suppression est définitive ; la synchronisation ne propage pas automatiquement les suppressions et les signale comme conflits.
 
-## 5. Configuration et modules internes
+## 6. Configuration et modules internes
 
 Ces fichiers sont utilisés par les scripts principaux. Ils ne font pas partie de la séquence à lancer manuellement :
 
@@ -91,24 +175,21 @@ Ces fichiers sont utilisés par les scripts principaux. Ils ne font pas partie d
 | `l93.py` | Conversion de coordonnées Lambert 93 vers latitude/longitude. |
 | `naf_libelles.json` | Libellés complémentaires de codes NAF utilisés lors de la construction. |
 
-## 6. Publication du site
+## 7. Publication du site
 
 La publication est distincte de la collecte et de l'export.
 
-Après avoir contrôlé les résultats localement, l'enseignant versionne la base et les fichiers publics :
+Après avoir contrôlé les résultats localement, l'enseignant vérifie les fichiers modifiés :
 
 ```bash
 git status
-git add database/entreprises.db public/data
-git commit -m "Mise à jour des entreprises"
-git push
 ```
 
-Le workflow GitHub Actions déclenché par un push sur `main` publie le contenu de `public/` avec GitHub Pages. Il ne lance pas `collecte.py`, `construire.py` ou `sqlite_sync.py`.
+Puis il versionne les fichiers nécessaires et pousse les changements sur la branche de publication. Le workflow GitHub Actions déclenché par un push sur `main` publie le contenu de `public/` avec GitHub Pages. Il ne lance pas `collecte.py`, `construire.py` ou `sqlite_sync.py`.
 
 ## Fichiers à ne pas confondre
 
 - `donnees/lieux_auto.json` est un fichier intermédiaire généré par `construire.py`.
-- `database/entreprises.db` est la base de référence, qui contient aussi les corrections manuelles.
+- `database/entreprises.db` est la copie de travail SQLite, synchronisée avec la base centrale Supabase. Elle contient aussi les instantanés de synchronisation.
 - `public/data/lieux.json` et le CSV sont les exports destinés au site et aux utilisateurs.
-- `cache/` contient des données techniques régénérables ; ce n'est ni la base de référence ni l'export public.
+- `cache/` contient des données techniques régénérables ; ce n'est ni la base centrale ni l'export public.

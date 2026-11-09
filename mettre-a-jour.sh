@@ -1,21 +1,68 @@
 #!/bin/sh
-# Mise à jour locale des entreprises du Var, puis export des données destinées à la carte.
-#   ./mettre-a-jour.sh               -> collecte, construction, fusion SQLite et export JSON
+# Mise à jour des données Stage Explorer avec Supabase comme base centrale.
+#   ./mettre-a-jour.sh               -> synchronisation, collecte, construction et export
 #   ./mettre-a-jour.sh --rafraichir  -> force le rafraîchissement des données sources
-# La base database/entreprises.db est versionnée dans Git : penser à la committer après mise à jour.
-set -e
+#   ./mettre-a-jour.sh --verbose     -> détaille les valeurs échangées avec Supabase
+# Les variables SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY doivent être définies.
+set -eu
+
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+RAFFRAICHIR=0
+VERBOSE=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --rafraichir) RAFFRAICHIR=1 ;;
+    --verbose) VERBOSE=1 ;;
+    -h|--help)
+      echo "Usage : ./mettre-a-jour.sh [--rafraichir] [--verbose]"
+      exit 0
+      ;;
+    *)
+      echo "Option inconnue : $arg" >&2
+      echo "Usage : ./mettre-a-jour.sh [--rafraichir] [--verbose]" >&2
+      exit 2
+      ;;
+  esac
+done
+
 cd "$ROOT/scripts"
-case " $* " in
-  *" --rafraichir "*) python3 collecte.py --rafraichir ;;
-  *) python3 collecte.py ;;
-esac
+
+synchroniser_supabase() {
+  if [ "$VERBOSE" -eq 1 ]; then
+    python3 supabase_sync.py --sync --verbose
+  else
+    python3 supabase_sync.py --sync
+  fi
+}
+
+echo
+echo "=== 1/5 — Synchronisation préalable avec Supabase ==="
+synchroniser_supabase
+
+echo
+echo "=== 2/5 — Collecte des données ==="
+if [ "$RAFFRAICHIR" -eq 1 ]; then
+  python3 collecte.py --rafraichir
+else
+  python3 collecte.py
+fi
+
+echo
+echo "=== 3/5 — Construction et mise à jour de SQLite ==="
 python3 construire.py
-python3 sqlite_sync.py --sync-auto --geocode --export
+python3 sqlite_sync.py --sync-auto --geocode
+
+echo
+echo "=== 4/5 — Envoi des mises à jour vers Supabase ==="
+synchroniser_supabase
+
+echo
+echo "=== 5/5 — Export des données publiques ==="
+python3 sqlite_sync.py --export
+
 echo
 echo "Mise à jour terminée."
-echo "Vérifie la carte localement, puis commit/push la base SQLite et les fichiers générés :"
+echo "Vérifie la carte localement, puis contrôle les fichiers modifiés :"
 echo "  git status"
-echo "  git add database/entreprises.db public/data"
-echo "  git commit -m \"Mise à jour des entreprises du Var\""
-echo "  git push"
+echo "Après vérification, tu peux versionner les fichiers nécessaires et publier le site."

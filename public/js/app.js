@@ -1,5 +1,5 @@
 /* Carte des stages CIEL — application (Leaflet + MarkerCluster, sans autre dépendance).
-   Données chargées depuis data/*.json, exportées depuis la base SQLite. */
+   Les lieux publiés sont lus dans Supabase ; les petits référentiels cartographiques restent locaux. */
 (function () {
   "use strict";
 
@@ -71,45 +71,106 @@
   }
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 
-  // lieux.json est exporté depuis la base SQLite par scripts/sqlite_sync.py
-  Promise.all(["data/lieux.json", "data/meta.json", "data/naf.json", "data/departements.json", "data/villes.json"].map(getJSON))
+  // La liste des lieux est lue directement dans la vue publique Supabase.
+  const SUPABASE_URL = "https://krjazwnguzynfbckilxx.supabase.co";
+  const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_l-qQXThzVVHPKPlJBN988A_WJuHcTqp";
+  const PAGE_SIZE = 1000;
+  async function getSupabaseRows() {
+    const fields = ["siret", "nom", "ens", "adr", "cp", "ville", "naf", "t", "tu", "cat", "src", "siege",
+      "lat", "lon", "approx", "rel", "tel", "mail", "web", "csrc", "stage", "osm_type", "note", "adeq", "poles", "acts", "fam"];
+    const endpoint = SUPABASE_URL + "/rest/v1/lieux_publics?select=" + fields.join(",") + "&order=ville.asc,nom.asc,siret.asc";
+    const headers = {
+      apikey: SUPABASE_PUBLISHABLE_KEY,
+      Authorization: "Bearer " + SUPABASE_PUBLISHABLE_KEY,
+      "Range-Unit": "items",
+      Prefer: "count=exact"
+    };
+    async function page(from) {
+      const response = await fetch(endpoint, {
+        headers: { ...headers, Range: from + "-" + (from + PAGE_SIZE - 1) }
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error("Supabase (" + response.status + ") : " + detail);
+      }
+      const rows = await response.json();
+      const range = response.headers.get("Content-Range") || "";
+      const match = range.match(/\/(\d+)$/);
+      return { rows, total: match ? Number(match[1]) : null };
+    }
+
+    const first = await page(0);
+    if (first.total !== null) {
+      const offsets = [];
+      for (let offset = PAGE_SIZE; offset < first.total; offset += PAGE_SIZE) offsets.push(offset);
+      const rest = [];
+      for (let i = 0; i < offsets.length; i += 4) {
+        const batch = await Promise.all(offsets.slice(i, i + 4).map(page));
+        rest.push(...batch.flatMap((part) => part.rows));
+      }
+      return first.rows.concat(rest);
+    }
+
+    // Repli si le serveur ne rend pas Content-Range accessible au navigateur.
+    const all = first.rows.slice();
+    let offset = all.length;
+    while (first.rows.length === PAGE_SIZE && offset > 0) {
+      const next = await page(offset);
+      all.push(...next.rows);
+      if (next.rows.length < PAGE_SIZE) break;
+      offset += next.rows.length;
+    }
+    return all;
+  }
+
+  Promise.all([
+    getSupabaseRows(),
+    getJSON("data/meta.json"),
+    getJSON("data/naf.json"),
+    getJSON("data/departements.json"),
+    getJSON("data/villes.json")
+  ])
     .then(start)
-    .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Ouvre la carte depuis un serveur web (GitHub Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
+    .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Vérifie la connexion à Supabase et ouvre la carte depuis un serveur web (GitHub Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
 
   function start([LIEUX, META, NAF, BASE, TOWNS]) {
     const CATS = META.categories, TR = META.tranches;
     $("maj").textContent = new Date(META.date).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
 
     // ---------------------------------------------------------- données
-    const F = Object.fromEntries(LIEUX.champs.map((c, i) => [c, i]));
-    const base = LIEUX.lieux.map((a) => { const r = {}; for (const k in F) r[k] = a[F[k]]; return r; });
-    const rows = base.map((r, i) => {
+    const rows = LIEUX.map((source, i) => {
+      const r = { ...source };
       r.i = i;
       const d2 = String(r.cp).slice(0, 2); r.dep = d2 in DEPS && d2 !== "HA" ? d2 : "HA";
       r.size = sizeOf(r.t); r.rel = +r.rel; r.adeq = +r.adeq || 0; r.poles = r.poles || ""; r.acts = r.acts || ""; r.fam = r.fam || "";
       r.title = r.ens || r.nom; r.osm = /^(osm|grist)/.test(String(r.siret));
       r.label = NAF[r.naf] || r.osm_type || CATS[r.cat];
-      r.hasContact = !!(r.tel || r.mail);
+      r.hasTel = !!String(r.tel || "").trim();
+      r.hasMail = !!String(r.mail || "").trim();
+      r.hasWeb = !!String(r.web || "").trim();
+      r.hasContact = r.hasTel || r.hasMail || r.hasWeb;
       r.txt = norm([r.nom, r.ens, r.ville, r.cp, r.naf, String(r.naf).replace(".", ""), r.label, CATS[r.cat]].join(" "));
       return r;
     });
     let favs = new Set(store.get(STORE_FAVS, []));
 
     // ---------------------------------------------------------- état des filtres
-    // au premier lancement : pertinence forte, cœur du référentiel ou stage déjà réalisé, avec téléphone ou e-mail, tous les métiers
+    // Au premier lancement : pertinence forte et cœur du référentiel ; aucun filtre contact/stage activé.
     const DEF_REL = ["3"], DEF_ADEQ = ["4", "3"];
     const state = { rel: new Set(DEF_REL), dep: new Set(Object.keys(DEPS)), cat: new Set(Object.keys(CATS)),
       size: new Set(Object.keys(SIZES)), naf: "", q: "", town: "", km: 30,
-      onlyfav: false, contact: true, stage: false, poles: new Set(), fam: new Set(), adeq: new Set(DEF_ADEQ) };
+      onlyfav: false, contact: false, tel: false, mail: false, web: false, stage: false,
+      poles: new Set(), fam: new Set(), adeq: new Set(DEF_ADEQ) };
     const saved = store.get(STORE_FILTERS, null);
     if (saved) {
       for (const k of ["rel", "dep", "cat", "size", "poles", "fam", "adeq"]) if (Array.isArray(saved[k])) state[k] = new Set(saved[k]);
       // secteurs / départements apparus depuis la dernière visite : cochés par défaut
       for (const [k, all] of [["cat", CATS], ["dep", DEPS]]) for (const v of Object.keys(all)) if (!(saved.known?.[k] || []).includes(v)) state[k].add(v);
-      for (const k of ["naf", "town", "km", "contact", "stage"]) if (saved[k] != null) state[k] = saved[k];
+      // Contact et stage ne sont volontairement pas restaurés : ils repartent décochés à chaque visite.
+      for (const k of ["naf", "town", "km"]) if (saved[k] != null) state[k] = saved[k];
     }
     const saveState = () => store.set(STORE_FILTERS, { rel: [...state.rel], dep: [...state.dep], cat: [...state.cat], poles: [...state.poles], fam: [...state.fam], adeq: [...state.adeq],
-      size: [...state.size], naf: state.naf, town: state.town, km: state.km, contact: state.contact, stage: state.stage,
+      size: [...state.size], naf: state.naf, town: state.town, km: state.km,
       known: { cat: Object.keys(CATS), dep: Object.keys(DEPS) } });
 
     // ---------------------------------------------------------- filtres (UI)
@@ -161,10 +222,17 @@
     $("cat-none").onclick = () => setAllCats(false);
 
     $("n-contact").textContent = rows.filter((r) => r.hasContact).length;
+    $("n-tel").textContent = rows.filter((r) => r.hasTel).length;
+    $("n-mail").textContent = rows.filter((r) => r.hasMail).length;
+    $("n-web").textContent = rows.filter((r) => r.hasWeb).length;
     $("n-stage").textContent = rows.filter((r) => r.stage).length;
-    $("withcontact").checked = state.contact; $("withstage").checked = state.stage;
-    $("withcontact").onchange = (e) => { state.contact = e.target.checked; apply(); };
-    $("withstage").onchange = (e) => { state.stage = e.target.checked; apply(); };
+    for (const [id, key] of [
+      ["withcontact", "contact"], ["withtel", "tel"], ["withmail", "mail"],
+      ["withweb", "web"], ["withstage", "stage"],
+    ]) {
+      $(id).checked = state[key];
+      $(id).onchange = (e) => { state[key] = e.target.checked; apply(); };
+    }
 
     const nafSel = $("naf-sel"), nafC = counts("naf");
     Object.keys(nafC).filter(Boolean).sort().forEach((c) => nafSel.add(new Option(`${c} · ${NAF[c] || ""} (${nafC[c]})`, c)));
@@ -308,7 +376,9 @@
       const t = TOWNS.find((x) => x[0] === state.town);
       current = rows.filter((r) => state.rel.has(String(r.rel)) && state.dep.has(r.dep) && state.cat.has(r.cat) && state.size.has(r.size)
         && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
-        && (!state.contact || r.hasContact) && (!state.stage || r.stage) && state.adeq.has(String(r.adeq))
+        && (!state.contact || r.hasContact)
+        && (!state.tel || r.hasTel) && (!state.mail || r.hasMail) && (!state.web || r.hasWeb)
+        && (!state.stage || r.stage) && state.adeq.has(String(r.adeq))
         && (!state.poles.size || [...state.poles].some((p) => r.poles.includes(p)))
         && (!state.fam.size || [...state.fam].some((f) => r.fam.includes(f)))
         && terms.every((w) => r.txt.includes(w)) && (!t || (r.d = dist(t[1], t[2], r.lat, r.lon)) <= state.km));
@@ -319,13 +389,15 @@
       syncCats();
       hint("h-rel", state.rel, REL); hint("h-adeq", state.adeq, ADEQ); hint("h-dep", state.dep, DEPS); hint("h-cat", state.cat, CATS); hint("h-size", state.size, SIZES);
       $("h-naf").textContent = state.naf || "tous";
-      $("h-contact").textContent = [state.contact && "avec contact", state.stage && "stages"].filter(Boolean).join(", ");
+      $("h-contact").textContent = [state.contact && "avec contact", state.tel && "téléphone",
+        state.mail && "e-mail", state.web && "site web", state.stage && "stage réalisé"].filter(Boolean).join(", ");
       $("h-dist").textContent = t ? `${state.km} km autour de ${t[0]}` : "toutes distances";
       $("sortinfo").textContent = t ? `· du plus proche au plus loin de ${t[0]}` : "· triés par lien avec le référentiel CIEL";
       const full = (set, all) => set.size === Object.keys(all).length;
       const same = (set, def) => set.size === def.length && def.every((v) => set.has(v));
       const actifs = [!same(state.rel, DEF_REL), !full(state.dep, DEPS), !full(state.cat, CATS),
-        !full(state.size, SIZES), !!state.naf, !!t, !state.contact, state.stage,
+        !full(state.size, SIZES), !!state.naf, !!t,
+        state.contact, state.tel, state.mail, state.web, state.stage,
         state.poles.size > 0, state.fam.size > 0, !same(state.adeq, DEF_ADEQ)].filter(Boolean).length;
       $("nactive").hidden = !actifs; $("nactive").textContent = actifs;
       cluster.clearLayers(); cluster.addLayers(current.map((r) => r.m));
@@ -345,7 +417,7 @@
         <div class="t">${esc(r.title)}${r.ens ? ` <em>· ${esc(r.nom)}</em>` : ""}</div>
         <button class="fav" type="button" data-fav="${r.i}" aria-pressed="${favs.has(r.siret)}" aria-label="Garder en favori"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1.5l1.9 4 4.3.5-3.2 3 .9 4.3L8 11.2 4.1 13.3l.9-4.3-3.2-3 4.3-.5z" fill="currentColor"/></svg></button>
         <div class="m"><span>${esc(r.ville)} (${r.dep})</span><span>${esc(r.label)}</span><span>${REL[r.rel]}</span>
-          ${r.hasContact ? `<span class="ic" title="Contact disponible">${r.tel ? "☎" : ""}${r.mail ? "✉" : ""}</span>` : ""}
+          ${r.hasContact ? `<span class="ic" title="Contact disponible">${r.hasTel ? "☎" : ""}${r.hasMail ? "✉" : ""}${r.hasWeb ? "↗" : ""}</span>` : ""}
           ${r.poles ? `<span class="poles">${r.poles.split(" ").map((p) => `<span class="pole pole-${p}" title="${esc(POLES[p])}">${p}</span>`).join("")}</span>` : ""}
           ${r.stage ? '<span class="stage">★ stage réalisé</span>' : ""}
           ${r.d != null && state.town ? `<span class="d">${r.d.toFixed(1).replace(".", ",")} km</span>` : ""}</div>
