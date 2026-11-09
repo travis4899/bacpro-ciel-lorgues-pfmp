@@ -266,9 +266,9 @@ def display_value(value, limit=100):
 def print_report(events, verbose=False):
     """Affiche les fiches modifiées et, sur demande, le détail des valeurs."""
     if not events:
-        print("\\nAucune fiche modifiée.")
+        print("\nAucune fiche modifiée.")
         return
-    print("\\nDétail des opérations :")
+    print("\nDétail des opérations :")
     for event in events:
         print(
             f"  [{event['action']}] {event.get('nom') or '(sans nom)'} "
@@ -528,6 +528,13 @@ def synchronize(db, verbose=False):
             continue
         if siret in states:
             conflicts.append((siret, ["fiche distante absente (suppression non propagée)"]))
+            events.append({
+                "action": "CONFLIT",
+                "siret": siret,
+                "nom": local_record.get("nom"),
+                "fields": ["fiche distante absente (suppression non propagée)"],
+                "local": normalize_record(local_record),
+            })
             continue
         try:
             push_new_record(db, local_record)
