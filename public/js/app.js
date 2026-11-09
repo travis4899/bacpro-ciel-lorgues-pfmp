@@ -246,8 +246,7 @@
     const catCount = counts("cat");
     const qcEl = $("quickcats");
     const famCount = {}; rows.forEach((r) => r.fam.split(" ").filter(Boolean).forEach((f) => (famCount[f] = (famCount[f] || 0) + 1)));
-    qcEl.innerHTML = `<button type="button" class="qc qc-all" data-fam="*">Tous les métiers</button>`
-      + Object.keys(FAMILLES).filter((k) => famCount[k]).map((k) => `<button type="button" class="qc" data-fam="${k}" title="${esc(FAMILLES[k])} (${famCount[k]})">${esc(FAM_COURT[k])}</button>`).join("")
+    qcEl.innerHTML = `<button type="button" class="qc qc-all" data-fam="*">Tous les métiers</button>`      + Object.keys(FAMILLES).filter((k) => famCount[k]).map((k) => `<button type="button" class="qc" data-fam="${k}" title="${esc(FAMILLES[k])} (${famCount[k]})">${esc(FAM_COURT[k])}</button>`).join("")
       + `<span class="qc-sep" aria-hidden="true"></span>`
       + Object.entries(POLES).map(([k, v]) => `<button type="button" class="qc qp" data-pole="${k}" title="Pôle du référentiel CIEL"><span class="pole pole-${k}">${k}</span>${esc(v)}</button>`).join("");
     qcEl.addEventListener("click", (e) => {
@@ -344,18 +343,22 @@
     const radius = { 3: 8, 2: 6, 1: 4.5 };
     function createMarker(r) {
       if (r.m || r.lat == null || r.lon == null || !Number.isFinite(+r.lat) || !Number.isFinite(+r.lon)) return;
-      r.m = L.circleMarker([r.lat, r.lon], r.stage
-        ? { radius: 10, color: token("--stage"), weight: 3, fillColor: col(r.cat), fillOpacity: 1 }
-        : { radius: radius[r.rel], color: r.rel == 3 ? token("--ink") : col(r.cat), weight: r.rel == 3 ? 1.5 : 1, fillColor: col(r.cat), fillOpacity: r.rel == 1 ? 0.55 : 0.9 });
+      r.m = L.circleMarker([r.lat, r.lon], r.masquer
+        ? { radius: 7, color: "#777", weight: 2, fillColor: "#aaa", fillOpacity: 0.3, dashArray: "3 3" }
+        : r.stage
+          ? { radius: 10, color: token("--stage"), weight: 3, fillColor: col(r.cat), fillOpacity: 1 }
+          : { radius: radius[r.rel], color: r.rel == 3 ? token("--ink") : col(r.cat), weight: r.rel == 3 ? 1.5 : 1, fillColor: col(r.cat), fillOpacity: r.rel == 1 ? 0.55 : 0.9 });
       r.m.on("click", () => openFiche(r));
     }
     rows.forEach(createMarker);
     function updateMarker(r) {
       if (!r.m) return;
-      r.m.setRadius(r.stage ? 10 : radius[r.rel]);
-      r.m.setStyle(r.stage
-        ? { radius:10, color:token("--stage"), weight:3, fillColor:col(r.cat), fillOpacity:1 }
-        : { radius:radius[r.rel], color:r.rel==3 ? token("--ink") : col(r.cat), weight:r.rel==3 ? 1.5 : 1, fillColor:col(r.cat), fillOpacity:r.rel==1 ? 0.55 : 0.9 });
+      r.m.setRadius(r.masquer ? 7 : r.stage ? 10 : radius[r.rel]);
+      r.m.setStyle(r.masquer
+        ? { radius:7, color:"#777", weight:2, fillColor:"#aaa", fillOpacity:0.3, dashArray:"3 3" }
+        : r.stage
+          ? { radius:10, color:token("--stage"), weight:3, fillColor:col(r.cat), fillOpacity:1 }
+          : { radius:radius[r.rel], color:r.rel==3 ? token("--ink") : col(r.cat), weight:r.rel==3 ? 1.5 : 1, fillColor:col(r.cat), fillOpacity:r.rel==1 ? 0.55 : 0.9 });
     }
     let townCircle = null;
     // Une seule fiche, posée sur la carte et non liée au point : MarkerCluster retire et remet les points
@@ -496,8 +499,7 @@
       const terms = norm(state.q).split(/\s+/).filter(Boolean);
       const t = TOWNS.find((x) => x[0] === state.town);
       current = rows.filter((r) => {
-        // Le filtre « fiches masquées » bascule sur une liste dédiée, sans mélanger les fiches publiées.
-        if (state.showMasked) return isTeacher && !!r.masquer && terms.every((w) => r.txt.includes(w));
+        // Le filtre « fiches masquées » bascule sur une liste dédiée, sans mélanger les fiches publiées.        if (state.showMasked) return isTeacher && !!r.masquer && terms.every((w) => r.txt.includes(w));
         if (r.masquer) return false;
         return state.rel.has(String(r.rel)) && state.dep.has(r.dep) && state.cat.has(r.cat) && state.size.has(r.size)
           && (!state.naf || r.naf === state.naf) && (!state.onlyfav || favs.has(r.siret))
@@ -526,7 +528,8 @@
         state.contact, state.tel, state.mail, state.web, state.stage, state.showMasked,
         state.poles.size > 0, state.fam.size > 0, !same(state.adeq, DEF_ADEQ)].filter(Boolean).length;
       $("nactive").hidden = !actifs; $("nactive").textContent = actifs;
-      cluster.clearLayers(); cluster.addLayers(current.filter((r) => !r.masquer && r.m).map((r) => r.m));
+      // En mode « fiches masquées », les marqueurs des fiches masquées sont également affichés.
+      cluster.clearLayers(); cluster.addLayers(current.filter((r) => r.m).map((r) => r.m));
       if (ficheRow && !current.includes(ficheRow)) map.closePopup(fiche);
       if (townCircle) { map.removeLayer(townCircle); townCircle = null; }
       if (t) {
@@ -590,7 +593,7 @@
             if (known.has(source.siret)) return;
             const r = prepareRow(source, rows.length);
             r._adminOnly = true; r._originMasked = true; r.m = null;
-            rows.push(r); known.add(r.siret);
+            rows.push(r); known.add(r.siret); createMarker(r);
           });
           maskedRowsLoaded = true;
         }
