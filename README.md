@@ -105,6 +105,14 @@ Une fiche masquée ou signalée absente du calcul automatique n'est pas publiée
 - Lorsque plusieurs filtres de contact sont activés, ils se cumulent : une entreprise doit satisfaire chacun des critères sélectionnés. Le filtre global, lui, accepte au moins l'un des trois moyens de contact.
 - Les compteurs affichent le nombre de fiches correspondant à chaque critère.
 - Favoris conservés dans le navigateur.
+- Connexion individuelle des enseignants via Supabase Auth avec session persistante.
+- Modification des coordonnées, contacts et notes par les enseignants autorisés.
+- Case « Stage réalisé » directement dans chaque résultat, réservée aux enseignants connectés.
+- Les visiteurs non connectés conservent une consultation seule.
+
+## Administration des fiches
+
+La procédure de création des comptes enseignants est décrite dans [la documentation d’administration](docs/administration.md). Les droits d’écriture sont contrôlés par RLS et une liste blanche privée dans Supabase.
 
 ## Organisation des données
 
