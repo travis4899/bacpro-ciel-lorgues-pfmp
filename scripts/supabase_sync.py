@@ -213,9 +213,9 @@ def push_new_record(db, local):
     payload["overrides"] = clean["overrides"]
     result = api_request(
         "POST",
-        f"{TABLE}?on_conflict=siret",
+        TABLE,
         [payload],
-        prefer="resolution=merge-duplicates,return=representation",
+        prefer="return=representation",
     )
     if not result or len(result) != 1:
         raise SyncError(f"Création distante non confirmée pour {clean['siret']}.")
@@ -276,44 +276,73 @@ def merge_record(siret, local, remote, state):
 
 
 def initial_import(db):
+    """Import initial résumable : accepte uniquement un sous-ensemble déjà importé à l'identique."""
     remote = fetch_remote()
-    if remote:
-        raise SyncError(
-            f"Import initial refusé : Supabase contient déjà {len(remote)} fiche(s). "
-            "Aucune donnée n'a été modifiée."
-        )
     locals_ = local_rows(db)
     if not locals_:
         raise SyncError("La base SQLite ne contient aucune fiche à importer.")
 
-    print(f"Import initial : {len(locals_)} fiches SQLite vers Supabase.")
-    items = list(locals_.values())
+    extra = set(remote) - set(locals_)
+    if extra:
+        raise SyncError(
+            f"Import initial refusé : Supabase contient {len(extra)} fiche(s) absente(s) "
+            "de SQLite. Aucune donnée n'a été modifiée."
+        )
+
+    # Si une exécution précédente s'est interrompue, on vérifie les fiches déjà
+    # présentes avant de reprendre uniquement les fiches manquantes.
+    for siret, remote_row in remote.items():
+        local_row = normalize_record(locals_[siret])
+        remote_clean = normalize_record(remote_row)
+        differences = [
+            field for field in COMPARE_FIELDS
+            if not equal(local_row[field], remote_clean[field])
+        ]
+        if differences:
+            raise SyncError(
+                f"Import initial interrompu ou données divergentes pour {siret} "
+                f"({', '.join(differences)}). Vérification manuelle nécessaire."
+            )
+        write_local(db, remote_row)
+        save_state(db, siret, remote_row)
+    db.commit()
+
+    missing = [row for siret, row in locals_.items() if siret not in remote]
+    print(
+        f"Import initial : {len(remote)} fiche(s) déjà confirmée(s), "
+        f"{len(missing)} à importer."
+    )
     imported = 0
-    for start in range(0, len(items), BATCH_SIZE):
-        batch = [normalize_record(item) for item in items[start:start + BATCH_SIZE]]
+    for start in range(0, len(missing), BATCH_SIZE):
+        batch = [normalize_record(item) for item in missing[start:start + BATCH_SIZE]]
         result = api_request(
             "POST",
-            f"{TABLE}?on_conflict=siret",
+            TABLE,
             batch,
-            prefer="resolution=merge-duplicates,return=representation",
+            prefer="return=representation",
         ) or []
         if len(result) != len(batch):
             raise SyncError(
                 f"Import partiel : {len(result)} fiches confirmées sur {len(batch)} "
-                f"dans le lot démarrant à {start}. Ne relance pas l'import sans vérifier Supabase."
+                f"dans le lot démarrant à {start}. Relance --initial-import : "
+                "les lots déjà importés seront vérifiés avant reprise."
             )
-        for remote in result:
-            write_local(db, remote)
-            save_state(db, remote["siret"], remote)
+        for remote_row in result:
+            write_local(db, remote_row)
+            save_state(db, remote_row["siret"], remote_row)
         db.commit()
         imported += len(result)
-        print(f"  {imported}/{len(items)}")
+        print(f"  {len(remote) + imported}/{len(locals_)}")
+
     db.execute(
         """INSERT INTO sync_meta(cle, valeur) VALUES ('initial_import_done', '1')
            ON CONFLICT(cle) DO UPDATE SET valeur='1'"""
     )
     db.commit()
-    print(f"Import terminé : {imported} fiches importées et révisions mémorisées.")
+    print(
+        f"Import terminé : {len(locals_)} fiches présentes dans Supabase "
+        "et révisions locales mémorisées."
+    )
 
 
 def synchronize(db):
