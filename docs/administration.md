@@ -4,9 +4,10 @@
 - Les visiteurs non connectés consultent les fiches comme auparavant.
 - Chaque enseignant possède un compte Supabase Auth individuel.
 - Une connexion ouvre une session persistante dans le navigateur ; plusieurs fiches peuvent être modifiées sans se reconnecter.
+- Le bloc de connexion/déconnexion est placé en bas du volet latéral gauche et centré.
 - Les enseignants autorisés peuvent modifier le nom, l'enseigne, l'adresse, le code postal, la ville, le téléphone, l'e-mail, le site web et la note.
 - Les cases « Stage réalisé » et « Masqué » sont disponibles directement dans la liste.
-- Les fiches masquées sont exclues des résultats publics et de la carte. Elles restent conservées en base et peuvent être retrouvées par les enseignants avec le filtre « Afficher les fiches masquées », puis rétablies en décochant « Masqué ».
+- Les fiches masquées sont exclues des résultats publics. Pour un enseignant autorisé, le filtre « Afficher les fiches masquées » affiche exclusivement ces fiches dans la liste et sur la carte ; leurs marqueurs sont différenciés visuellement (gris et pointillés). L'enseignant peut ouvrir une fiche depuis la liste ou la carte, puis la rétablir en décochant « Masqué ».
 - Le statut de masquage est synchronisé avec SQLite et protégé des mises à jour automatiques par le mécanisme des overrides.
 - Les changements sont écrits dans Supabase. Un déclencheur complète automatiquement `entreprises.overrides` pour protéger les corrections lors de la synchronisation SQLite ↔ Supabase.
 
