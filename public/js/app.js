@@ -551,7 +551,6 @@
           ${isTeacher ? `<label class="mask-toggle"><input type="checkbox" data-masquer="${r.i}" ${r.masquer ? "checked" : ""}><span>Masqué</span></label>` : ""}
           ${r.hasContact ? `<span class="ic" title="Contact disponible">${r.hasTel ? "☎" : ""}${r.hasMail ? "✉" : ""}${r.hasWeb ? "↗" : ""}</span>` : ""}
           ${r.poles ? `<span class="poles">${r.poles.split(" ").map((p) => `<span class="pole pole-${p}" title="${esc(POLES[p])}">${p}</span>`).join("")}</span>` : ""}
-          ${r.stage && !isTeacher ? '<span class="stage">★ stage réalisé</span>' : ""}
           ${r.d != null && state.town ? `<span class="d">${r.d.toFixed(1).replace(".", ",")} km</span>` : ""}</div>
       </div>`).join("");
       listEl.insertAdjacentHTML("beforeend", html); shown += PAGE;
