@@ -1,5 +1,5 @@
 /* Carte des stages CIEL — application (Leaflet + MarkerCluster, sans autre dépendance).
-   Données chargées depuis data/*.json, exportées depuis la base SQLite. */
+   Les lieux publiés sont lus dans Supabase ; les petits référentiels cartographiques restent locaux. */
 (function () {
   "use strict";
 
