@@ -74,6 +74,53 @@
   // La liste des lieux est lue directement dans la vue publique Supabase.
   const SUPABASE_URL = "https://krjazwnguzynfbckilxx.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_l-qQXThzVVHPKPlJBN988A_WJuHcTqp";
+
+  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+  });
+  let authSession = null, isTeacher = false, refreshAdminUI = () => {}, authCheck = 0;
+  const authDialog = $("auth-dialog");
+  function updateAuthControls() {
+    $("auth-open").hidden = !!authSession;
+    $("auth-user").hidden = !authSession;
+    $("auth-logout").hidden = !authSession;
+    $("auth-user").textContent = isTeacher ? (authSession?.user?.email || "Enseignant connecté") : "Compte non autorisé";
+    $("auth-area").classList.toggle("is-connected", isTeacher);
+  }
+  async function refreshSession(session) {
+    const check = ++authCheck;
+    authSession = session || null; isTeacher = false;
+    if (authSession) {
+      const { data, error } = await supabaseClient.from("entreprises").select("siret").limit(1);
+      if (check !== authCheck) return;
+      isTeacher = !error && Array.isArray(data) && data.length > 0;
+    }
+    if (check !== authCheck) return;
+    updateAuthControls(); refreshAdminUI();
+  }
+  $("auth-open").addEventListener("click", () => { $("auth-error").hidden = true; authDialog.showModal(); });
+  $("auth-cancel").addEventListener("click", () => authDialog.close());
+  $("auth-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = $("auth-submit"), errorBox = $("auth-error");
+    button.disabled = true; button.textContent = "Connexion…"; errorBox.hidden = true;
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: $("auth-email").value.trim(), password: $("auth-password").value
+    });
+    button.disabled = false; button.textContent = "Se connecter";
+    if (error) { errorBox.textContent = "Connexion impossible : " + error.message; errorBox.hidden = false; return; }
+    $("auth-password").value = ""; authDialog.close();
+    await refreshSession(data.session);
+    if (!isTeacher) toast("Ce compte n'est pas autorisé à modifier les fiches");
+  });
+  $("auth-logout").addEventListener("click", async () => {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) toast("Déconnexion impossible : " + error.message);
+  });
+  supabaseClient.auth.onAuthStateChange((_event, session) => { setTimeout(() => refreshSession(session), 0); });
+  supabaseClient.auth.getSession().then(({ data }) => refreshSession(data.session));
+
+
   const PAGE_SIZE = 1000;
   async function getSupabaseRows() {
     const fields = ["siret", "nom", "ens", "adr", "cp", "ville", "naf", "t", "tu", "cat", "src", "siege",
@@ -295,6 +342,11 @@
         : { radius: radius[r.rel], color: r.rel == 3 ? token("--ink") : col(r.cat), weight: r.rel == 3 ? 1.5 : 1, fillColor: col(r.cat), fillOpacity: r.rel == 1 ? 0.55 : 0.9 });
       r.m.on("click", () => openFiche(r));
     });
+    function updateMarker(r) {
+      r.m.setStyle(r.stage
+        ? { radius:10, color:token("--stage"), weight:3, fillColor:col(r.cat), fillOpacity:1 }
+        : { radius:radius[r.rel], color:r.rel==3 ? token("--ink") : col(r.cat), weight:r.rel==3 ? 1.5 : 1, fillColor:col(r.cat), fillOpacity:r.rel==1 ? 0.55 : 0.9 });
+    }
     let townCircle = null;
     // Une seule fiche, posée sur la carte et non liée au point : MarkerCluster retire et remet les points
     // pendant ses animations, ce qui refermait aussitôt une fiche liée au point (surtout sur téléphone).
@@ -336,11 +388,54 @@
       <div class="links">${r.osm ? "" : `<a class="main" href="https://annuaire-entreprises.data.gouv.fr/etablissement/${r.siret}" target="_blank" rel="noopener">Fiche officielle</a>`}
       <a href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener">Google Maps</a>
       <a href="https://www.pagesjaunes.fr/annuaire/chercherlespros?quoiqui=${encodeURIComponent(r.title)}&ou=${encodeURIComponent(r.ville)}" target="_blank" rel="noopener">PagesJaunes</a>
+      ${isTeacher ? `<button type="button" data-edit="${r.i}">Modifier la fiche</button>` : ""}
       <button type="button" data-copy="${r.i}">Copier la fiche</button>
       <button type="button" data-fav="${r.i}" aria-pressed="${fav}">${fav ? "★ Retirer" : "☆ Garder"}</button></div></div>`;
     }
     const ficheTexte = (r) => [r.title, r.ens ? r.nom : "", r.adr, `${r.cp} ${r.ville}`, r.tel && "Tél. " + r.tel, r.mail, r.web, r.osm ? "" : "SIRET " + r.siret].filter(Boolean).join("\n");
+
+    const editDialog = $("edit-dialog"), editForm = $("edit-form");
+    let editingRow = null;
+    function openEditor(r) {
+      if (!isTeacher) return;
+      editingRow = r; $("edit-company").textContent = r.title + " · " + r.ville;
+      for (const field of ["nom","ens","adr","cp","ville","tel","mail","web","note"]) editForm.elements.namedItem(field).value = r[field] || "";
+      $("edit-error").hidden = true; editDialog.showModal();
+    }
+    $("edit-cancel").addEventListener("click", () => editDialog.close());
+    function refreshDerivedFields(r) {
+      r.title = r.ens || r.nom;
+      r.hasTel = !!String(r.tel || "").trim(); r.hasMail = !!String(r.mail || "").trim();
+      r.hasWeb = !!String(r.web || "").trim(); r.hasContact = r.hasTel || r.hasMail || r.hasWeb;
+      r.txt = norm([r.nom,r.ens,r.ville,r.cp,r.naf,String(r.naf).replace(".",""),r.label,CATS[r.cat]].join(" "));
+      updateMarker(r);
+    }
+    editForm.addEventListener("submit", async (event) => {
+      event.preventDefault(); if (!isTeacher || !editingRow) return;
+      const button=$("edit-submit"), errorBox=$("edit-error"), payload={};
+      for (const field of ["nom","ens","adr","cp","ville","tel","mail","web","note"]) payload[field]=String(editForm.elements.namedItem(field).value||"").trim();
+      if (!payload.nom) { errorBox.textContent="Le nom de l'entreprise est obligatoire."; errorBox.hidden=false; return; }
+      button.disabled=true; button.textContent="Enregistrement…"; errorBox.hidden=true;
+      const target=editingRow;
+      const {data,error}=await supabaseClient.from("entreprises").update(payload).eq("siret",target.siret).select("siret").maybeSingle();
+      button.disabled=false; button.textContent="Enregistrer";
+      if (error || !data) { errorBox.textContent=error ? "Enregistrement impossible : "+error.message : "Aucune fiche modifiée. Vérifie tes droits."; errorBox.hidden=false; return; }
+      Object.assign(target,payload); refreshDerivedFields(target); editDialog.close(); apply();
+      if (ficheRow===target) openFiche(target); toast("Fiche enregistrée");
+    });
+    async function updateStage(r, checked, input) {
+      if (!isTeacher) { input.checked=!!r.stage; return; }
+      input.disabled=true; const value=checked ? "oui" : "";
+      const {data,error}=await supabaseClient.from("entreprises").update({stage:value}).eq("siret",r.siret).select("siret").maybeSingle();
+      input.disabled=false;
+      if (error || !data) { input.checked=!!r.stage; toast(error ? "Modification refusée : "+error.message : "Aucune fiche modifiée : droits insuffisants"); return; }
+      r.stage=value; $("n-stage").textContent=rows.filter((item)=>!!item.stage).length;
+      updateMarker(r); apply(); if (ficheRow===r) openFiche(r);
+      toast(checked ? "Stage réalisé enregistré" : "Stage réalisé décoché");
+    }
     document.addEventListener("click", (e) => {
+      const edit=e.target.closest("[data-edit]");
+      if (edit) { e.stopPropagation(); openEditor(rows[+edit.dataset.edit]); return; }
       const t = e.target.closest("[data-copytxt]"); if (t) { copy(t.dataset.copytxt, "Copié"); return; }
       const c = e.target.closest("[data-copy]"); if (c) { copy(ficheTexte(rows[+c.dataset.copy]), "Fiche copiée"); return; }
       const f = e.target.closest("[data-fav]");
@@ -417,6 +512,7 @@
         <div class="t">${esc(r.title)}${r.ens ? ` <em>· ${esc(r.nom)}</em>` : ""}</div>
         <button class="fav" type="button" data-fav="${r.i}" aria-pressed="${favs.has(r.siret)}" aria-label="Garder en favori"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1.5l1.9 4 4.3.5-3.2 3 .9 4.3L8 11.2 4.1 13.3l.9-4.3-3.2-3 4.3-.5z" fill="currentColor"/></svg></button>
         <div class="m"><span>${esc(r.ville)} (${r.dep})</span><span>${esc(r.label)}</span><span>${REL[r.rel]}</span>
+          ${isTeacher ? `<label class="stage-toggle"><input type="checkbox" data-stage="${r.i}" ${r.stage ? "checked" : ""}><span>Stage réalisé</span></label>` : (r.stage ? '<span class="stage">★ Stage réalisé</span>' : "")}
           ${r.hasContact ? `<span class="ic" title="Contact disponible">${r.hasTel ? "☎" : ""}${r.hasMail ? "✉" : ""}${r.hasWeb ? "↗" : ""}</span>` : ""}
           ${r.poles ? `<span class="poles">${r.poles.split(" ").map((p) => `<span class="pole pole-${p}" title="${esc(POLES[p])}">${p}</span>`).join("")}</span>` : ""}
           ${r.stage ? '<span class="stage">★ stage réalisé</span>' : ""}
@@ -427,10 +523,19 @@
     }
     listEl.addEventListener("click", (e) => {
       if (e.target.closest(".more button")) { renderMore(); return; }
-      if (e.target.closest(".fav")) return;
+      if (e.target.closest(".fav, .stage-toggle")) return;
       const it = e.target.closest(".item"); if (it) focusRow(rows[+it.dataset.i]);
     });
+    listEl.addEventListener("change", (e) => {
+      const input=e.target.closest("input[data-stage]"); if (!input) return;
+      e.stopPropagation(); updateStage(rows[+input.dataset.stage],input.checked,input);
+    });
     listEl.addEventListener("keydown", (e) => { if (e.key === "Enter") { const it = e.target.closest(".item"); if (it) focusRow(rows[+it.dataset.i]); } });
+    refreshAdminUI = () => {
+      const previousShown=shown; shown=0; listEl.innerHTML=""; renderMore();
+      while (shown<previousShown && shown<current.length) renderMore();
+      if (ficheRow) openFiche(ficheRow);
+    };
     function focusRow(r) {
       if (phone()) setView("map");
       setTimeout(() => cluster.zoomToShowLayer(r.m, () => openFiche(r)), phone() ? 60 : 0);
