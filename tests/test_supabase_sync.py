@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from supabase_sync import FIELDS, merge_record, snapshot
+from supabase_sync import FIELDS, changed_fields, merge_record, snapshot
 
 
 def fiche():
@@ -84,6 +84,17 @@ class TestFusionTroisVoies(unittest.TestCase):
 
         self.assertEqual(conflicts, [])
         self.assertEqual(merged["nom"], "Nom corrigé par le professeur")
+
+    def test_changed_fields_identifie_les_champs_modifies(self):
+        local = copy.deepcopy(self.base)
+        remote = copy.deepcopy(self.base)
+        local["note"] = "Note locale"
+        remote["tel"] = "04 00 00 00 00"
+
+        self.assertEqual(
+            changed_fields(local, remote),
+            ["tel", "note"],
+        )
 
     def test_updated_at_ne_cree_pas_de_conflit(self):
         local = copy.deepcopy(self.base)
