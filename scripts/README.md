@@ -98,7 +98,12 @@ Ne pas lancer `--initial-import` avant d'avoir vérifié que SQLite contient bie
 
 ```bash
 python3 scripts/supabase_sync.py --sync
+python3 scripts/supabase_sync.py --sync --verbose
 ```
+
+Par défaut, le script affiche le détail des fiches touchées, leur SIRET, le sens de l'opération et les champs concernés. L'option `--verbose` ajoute, pour chaque champ modifié, les valeurs de référence, locale, distante et fusionnée. Les fiches inchangées ne sont pas détaillées ; leur nombre reste indiqué dans le bilan.
+
+Même si des conflits sont détectés, le compte rendu liste les opérations déjà réalisées et affiche un bilan partiel : les changements réussis ne sont pas annulés automatiquement.
 
 La synchronisation compare l'instantané précédent, SQLite et Supabase :
 - les changements distants sont récupérés localement ;
