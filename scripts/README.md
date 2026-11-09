@@ -104,10 +104,17 @@ La synchronisation compare l'instantané précédent, SQLite et Supabase :
 - les changements distants sont récupérés localement ;
 - les changements locaux sont envoyés au serveur ;
 - les corrections identifiées dans `overrides` restent protégées ;
-- les suppressions distantes ne sont pas propagées automatiquement ;
+- les suppressions locales ou distantes ne sont pas propagées automatiquement : elles sont signalées comme conflits ;
 - si les deux côtés ont modifié différemment le même champ, la synchronisation s'arrête et affiche le conflit.
 
 Le suivi des révisions est stocké dans les tables locales `sync_state` et `sync_meta`. Il est donc important de conserver la base SQLite et de ne pas supprimer ces tables.
+
+Les tests unitaires des règles de fusion peuvent être lancés sans connexion Supabase :
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 -m py_compile scripts/supabase_sync.py scripts/sqlite_db.py
+```
 
 **À ce stade, la synchronisation n'est pas encore intégrée à `mettre-a-jour.sh`.** Elle doit d'abord être testée sur la copie locale de la base, avant toute automatisation de la collecte.
 
