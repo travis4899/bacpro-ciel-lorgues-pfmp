@@ -40,6 +40,7 @@ Table de métadonnées reprenant le rôle de la table SQLite `meta`. La version 
 - Aucun accès `anon` ou `authenticated` n'est accordé pour le moment.
 - Le rôle `service_role` dispose des droits nécessaires à la synchronisation serveur/locale.
 - La fonction technique `public.rls_auto_enable()` ne peut plus être exécutée par `anon` ou `authenticated`.
+- Un déclencheur `private.bump_entreprise_revision()` incrémente `revision` et actualise `updated_at` à chaque modification d'une fiche.
 - Aucune politique publique ni politique enseignant n'est encore créée.
 
 Les droits de lecture publique et les droits d'administration seront ajoutés séparément, après définition de la vue de publication et du modèle d'authentification enseignant.
@@ -52,6 +53,7 @@ Les droits de lecture publique et les droits d'administration seront ajoutés s�
 4. Conserver les états `masquer` et `statut_auto`.
 5. Utiliser `revision` pour détecter les modifications concurrentes ; un conflit doit être signalé, jamais écrasé silencieusement.
 6. Garder l'export JSON existant comme sauvegarde pendant la phase de transition.
+7. Conserver dans SQLite un instantané de la dernière version distante pour réaliser une fusion à trois voies.
 
 ## État de l'avancement
 
@@ -61,7 +63,9 @@ Les droits de lecture publique et les droits d'administration seront ajoutés s�
 - [x] Accès publics et authentifiés fermés par défaut.
 - [x] Exécution publique de la fonction automatique RLS révoquée.
 - [ ] Historique de migration versionné dans le dépôt avec la Supabase CLI.
-- [ ] Script de synchronisation SQLite ↔ Supabase.
+- [x] Script de synchronisation SQLite ↔ Supabase (`scripts/supabase_sync.py`).
+- [x] Suivi local des révisions et instantanés (`sync_state`, `sync_meta`).
+- [ ] Test du script avec les vraies données locales.
 - [ ] Import initial des données SQLite.
 - [ ] Vue/API de publication et politiques RLS.
 - [ ] Adaptation du front-end.
