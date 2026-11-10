@@ -30,7 +30,6 @@ Python 3.10 ou supérieur est recommandé. Les scripts utilisent principalement 
 ```bash
 git clone https://github.com/travis4899/bacpro-ciel-lorgues-pfmp.git
 cd bacpro-ciel-lorgues-pfmp
-chmod +x stage-explorer.sh
 ```
 
 Définir ensuite les variables d'environnement `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` (voir [la documentation des scripts](scripts/README.md#4-synchroniser-avec-supabase--supabase_syncpy)). Pour un poste de travail neuf, initialiser SQLite depuis la base centrale :
@@ -87,7 +86,7 @@ python3 scripts/entreprises.py afficher SIRET_OU_IDENTIFIANT
 python3 scripts/entreprises.py supprimer SIRET_OU_IDENTIFIANT
 ```
 
-Ces commandes agissent uniquement sur la copie SQLite locale. Pour transmettre une modification faite avec `entreprises.py` à la base centrale, lancer ensuite `python3 scripts/supabase_sync.py --sync` (ou la mise à jour complète `./mettre-a-jour.sh`). Pour éviter un conflit, synchroniser d'abord le poste avec Supabase avant une intervention locale.
+Ces commandes agissent uniquement sur la copie SQLite locale. Pour transmettre une modification faite avec `entreprises.py` à la base centrale, lancer ensuite `sh ./stage-explorer.sh --sync`. Pour éviter un conflit, synchroniser d'abord le poste avec Supabase avant une intervention locale.
 
 Les corrections manuelles sont conservées dans la colonne `overrides` et protégées des prochaines mises à jour automatiques. Les modifications effectuées depuis le site sont, elles, écrites directement dans Supabase. Les champs `stage` et `note` sont visibles dans la vue publique : ne saisir que des informations destinées à être rendues publiques.
 
