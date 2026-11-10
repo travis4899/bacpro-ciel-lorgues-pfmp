@@ -172,6 +172,10 @@
 
   Promise.all([
     getSupabaseRows(),
+    supabaseClient.rpc("get_last_data_update").then(({ data, error }) => {
+      if (error) throw error;
+      return data;
+    }),
     getJSON("data/meta.json"),
     getJSON("data/naf.json"),
     getJSON("data/departements.json"),
@@ -180,9 +184,11 @@
     .then(start)
     .catch((e) => { $("list").innerHTML = `<div class="empty">Impossible de charger les données (${esc(e.message)}). Vérifie la connexion à Supabase et ouvre la carte depuis un serveur web (GitHub Pages, ou <span class="mono">python3 -m http.server</span> dans le dossier public).</div>`; });
 
-  function start([LIEUX, META, NAF, BASE, TOWNS]) {
+  function start([LIEUX, LAST_UPDATE, META, NAF, BASE, TOWNS]) {
     const CATS = META.categories, TR = META.tranches;
-    $("maj").textContent = new Date(META.date).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
+    $("maj").textContent = LAST_UPDATE
+      ? new Date(LAST_UPDATE).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" })
+      : "indisponible";
 
     // ---------------------------------------------------------- données
     function prepareRow(source, i) {
