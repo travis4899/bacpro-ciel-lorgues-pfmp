@@ -32,7 +32,15 @@ stats = Counter()
 def categorie(code, nom=""):
     c = code or ""
     nom = nrm(nom)
-    if c == "84.22Z" or re.search(r"ARMEE|FORCES ARMEES|BASE DE DEFENSE|REGIMENT|GARNISON|MINISTERE DES ARMEES", nom): return "armee"
+    if c == "84.22Z" or re.search(
+        r"ARMEE|FORCES ARMEES|BASE DE DEFENSE|BASE MILITAIRE|CAMP DE CANJUERS|"
+        r"REGIMENT|GARNISON|MINISTERE DES ARMEES|EALAT|\\b2E RHC\\b|\\b21E RIMA\\b|"
+        r"\\b54E RA\\b|\\b3E RAMA\\b|\\b1ER RCA\\b|\\b4E RMAT\\b|"
+        r"\\b519E RT\\b|UIISC ?7|CIRISI|DIRISI|DGA|ATELIER INDUSTRIEL DE L.AERONAUTIQUE|"
+        r"BASE AERONAUTIQUE NAVALE|BASE NAVALE|POLE ECOLES MEDITERRANEE|"
+        r"ECONOMAT DES ARMEES|GROUPEMENT DE SOUTIEN.*BASE DE DEFENSE|ECOLES MILITAIRES",
+        nom
+    ): return "armee"
     if c == "84.24Z" or re.search(r"GENDARMERIE|POLICE NATIONALE|POLICE MUNICIPALE|PREFECTURE DE POLICE|SECURITE PUBLIQUE", nom): return "securite"
     if c == "84.25Z":
         if re.search(r"\bSDIS\b|SERVICE DEPARTEMENTAL D.INCENDIE", nom): return "sdis"
