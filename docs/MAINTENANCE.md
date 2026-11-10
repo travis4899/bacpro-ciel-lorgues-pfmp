@@ -1,106 +1,149 @@
 # Maintenance du projet Stage Explorer
 
-La base centrale est **Supabase/PostgreSQL**. La base SQLite locale, `database/entreprises.db`, est la copie de travail utilisée par les scripts d'administration, de collecte et d'export. Elle contient également les instantanés et révisions nécessaires à la synchronisation à trois voies.
+## Référence des données
 
-Les opérations sont exécutées localement depuis le poste de l'enseignant.
+- **Supabase/PostgreSQL** est la base centrale de référence. Le site lit directement les fiches publiables dans la vue `public.lieux_publics`.
+- **SQLite** (`database/entreprises.db`) est la copie locale de travail utilisée par les scripts de collecte, de construction, de gestion et d'export. Elle contient aussi les instantanés et révisions nécessaires à la synchronisation.
+- Les fichiers `public/data/lieux.json` et `lieux-stage-ciel.csv` sont des exports de sauvegarde ; ils ne sont plus la source des fiches affichées sur le site.
+- Les scripts sont exécutés localement depuis le poste de l'enseignant. GitHub Pages héberge uniquement le front-end statique.
 
-## Mise à jour habituelle
+## Point d'entrée des opérations
 
 Depuis la racine du dépôt :
 
 ```bash
-./mettre-a-jour.sh
+sh ./stage-explorer.sh
 ```
 
-Le script orchestre les cinq étapes suivantes :
+Sans argument, le script affiche l'aide et ne lance aucune opération. Les commandes disponibles sont :
 
-1. récupération des modifications Supabase vers SQLite ;
-2. collecte des données sources ;
-3. construction des données automatiques, classification CIEL et géocodage ;
-4. fusion et envoi des modifications SQLite vers Supabase ;
-5. export de sauvegarde JSON/CSV.
+| Commande | Usage |
+|---|---|
+| `sh ./stage-explorer.sh --init-base` | Première construction locale et import initial vers Supabase. Réservé à la création de la base centrale ; confirmation `INITIALISER` obligatoire. |
+| `sh ./stage-explorer.sh --init-poste` | Initialise ou remplace la copie SQLite depuis Supabase, après sauvegarde locale. Aucun envoi distant. |
+| `sh ./stage-explorer.sh --sync` | Synchronise uniquement SQLite et Supabase, sans collecte ni reconstruction. |
+| `sh ./stage-explorer.sh --maj` | Mise à jour complète en réutilisant les caches existants. |
+| `sh ./stage-explorer.sh --maj-api` | Même mise à jour, avec rafraîchissement des caches API concernés. |
+| `sh ./stage-explorer.sh --help` | Affiche l'aide. |
 
-Options :
+L'option `--verbose` peut être ajoutée à `--init-base`, `--sync`, `--maj` ou `--maj-api` pour détailler les valeurs comparées pendant les synchronisations.
+
+Les opérations Supabase nécessitent les variables d'environnement `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` (ou `SUPABASE_SECRET_KEY`). La clé secrète reste dans l'environnement local : ne jamais la placer dans Git ni dans le code exécuté par le navigateur.
+
+### Mise à jour habituelle
+
+La commande recommandée est :
 
 ```bash
-./mettre-a-jour.sh --rafraichir
-./mettre-a-jour.sh --verbose
+sh ./stage-explorer.sh --maj
 ```
 
-`--rafraichir` renouvelle les données de collecte mises en cache. `--verbose` détaille les valeurs comparées pendant la synchronisation Supabase.
+Elle enchaîne les opérations suivantes :
 
-**Ne pas lancer la collecte ou l'export après une erreur de synchronisation.** Le script organisateur s'arrête en cas d'erreur ou de conflit afin d'éviter de poursuivre avec des données non réconciliées.
+1. synchronisation SQLite ↔ Supabase avant toute collecte ;
+2. collecte des données sources (réutilisation des caches disponibles) ;
+3. construction des fiches automatiques ;
+4. intégration dans SQLite, calcul des indicateurs CIEL et géocodage ;
+5. seconde synchronisation SQLite ↔ Supabase ;
+6. export local JSON/CSV.
 
-## Initialiser un nouveau poste depuis Supabase
-
-Lorsqu'un poste possède une ancienne base SQLite qui ne doit pas être envoyée vers Supabase, l'initialisation doit se faire dans le sens **Supabase → SQLite uniquement**.
-
-Après avoir configuré les variables d'environnement Supabase, lancer depuis la racine du dépôt :
+Pour forcer le rafraîchissement des caches de collecte concernés :
 
 ```bash
-python3 scripts/supabase_sync.py --initial-pull
+sh ./stage-explorer.sh --maj-api
 ```
 
-Cette commande :
-- télécharge toutes les fiches présentes dans Supabase ;
-- crée automatiquement une sauvegarde horodatée de `database/entreprises.db` ;
-- remplace le contenu local des tables `entreprises` et `sync_state` par les données distantes et leurs révisions ;
-- initialise `sync_meta.initial_import_done` ;
-- n'effectue **aucune écriture vers Supabase**.
-
-La transaction SQLite garantit que le remplacement local est annulé en cas d'erreur. La commande refuse également de remplacer la base locale si Supabase ne renvoie aucune fiche. Après réussite, la synchronisation normale peut être lancée avec `./mettre-a-jour.sh`.
-
-**Attention :** cette opération remplace les fiches locales. Ne l'utiliser que lorsque Supabase est bien la référence et que les éventuelles modifications locales ont été écartées ou sauvegardées.
-
-## Synchronisation Supabase
-
-La synchronisation normale est :
+Pour synchroniser uniquement les fiches déjà présentes, sans interroger les API ni reconstruire les données :
 
 ```bash
-python3 scripts/supabase_sync.py --sync
+sh ./stage-explorer.sh --sync
 ```
 
-Elle fusionne les changements locaux et distants en comparant trois états : le dernier instantané synchronisé, la base SQLite actuelle et la fiche Supabase actuelle.
+Le script s'arrête en cas d'erreur ou de conflit de synchronisation. Ne pas poursuivre manuellement la collecte ou l'export après un échec de synchronisation.
 
-- Une modification locale seule est envoyée vers Supabase.
-- Une modification distante seule est récupérée dans SQLite.
-- Des modifications sur des champs différents sont fusionnées.
-- Une correction distante marquée dans `overrides` est prioritaire sur une nouvelle valeur automatique locale pour le champ concerné.
-- Deux modifications concurrentes différentes sur le même champ sont signalées comme conflit ; elles ne sont pas écrasées automatiquement.
+Le script historique `scripts/mettre-a-jour.sh` est conservé pour l'orchestration interne ; l'utilisation recommandée reste `stage-explorer.sh`.
 
-En cas de conflit, examiner les valeurs, corriger explicitement le champ dans la bonne base, puis relancer la synchronisation. Certaines opérations sans conflit peuvent avoir été confirmées avant que le script signale les conflits : le bilan est alors partiel. Il faut donc relancer la synchronisation après résolution.
+## Initialiser un nouveau poste
 
-Le script utilise des mises à jour groupées par lots via la fonction PostgreSQL `public.sync_update_entreprises_batch`. La taille des lots est définie dans `scripts/supabase_sync.py`. Les contrôles de révision empêchent d'écraser une fiche qui aurait changé sur le serveur pendant la synchronisation.
+Sur un poste secondaire ou après réinstallation, récupérer la copie centrale vers SQLite :
 
-Ne jamais supprimer les tables locales `sync_state` et `sync_meta` : elles conservent l'état de référence de la fusion.
+```bash
+sh ./stage-explorer.sh --init-poste
+```
+
+Avant cela, configurer `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` (ou `SUPABASE_SECRET_KEY`). La commande :
+
+- télécharge les fiches depuis Supabase ;
+- crée une sauvegarde horodatée de la base SQLite existante ;
+- remplace localement les tables `entreprises` et `sync_state` par les données distantes et leurs instantanés ;
+- initialise le marqueur local `sync_meta.initial_import_done` ;
+- n'effectue aucune écriture vers Supabase.
+
+La sauvegarde est nommée selon le modèle `database/entreprises.avant-initial-pull-AAAAMMJJ-HHMMSS.db`. La transaction SQLite annule le remplacement en cas d'erreur. La commande refuse également de remplacer la base locale si Supabase ne renvoie aucune fiche.
+
+**Attention :** cette opération remplace les fiches locales. Les modifications locales qui ne sont pas dans Supabase seront écartées de la copie active ; conserver la sauvegarde si elles doivent être récupérées.
+
+Ne pas utiliser `--init-base` ni `--initial-import` pour installer un poste secondaire.
+
+## Première initialisation de la base centrale
+
+Cette opération est exceptionnelle et ne doit être exécutée qu'une seule fois, lors de la création de la base centrale :
+
+```bash
+sh ./stage-explorer.sh --init-base
+```
+
+Le script demande de saisir exactement `INITIALISER` avant de commencer. Il effectue la collecte, la construction, l'intégration SQLite, l'import initial vers Supabase puis l'export local. Il ne faut pas utiliser cette commande pour une mise à jour courante.
+
+Le mode direct `python3 scripts/supabase_sync.py --initial-import` est réservé aux opérations avancées après vérification et sauvegarde de la base SQLite de référence.
+
+## Fonctionnement de la synchronisation
+
+La synchronisation normale compare trois états :
+
+- le dernier instantané synchronisé, conservé dans SQLite ;
+- la fiche locale actuelle ;
+- la fiche distante actuelle dans Supabase.
+
+Règles de fusion :
+
+- une modification locale seule est envoyée vers Supabase ;
+- une modification distante seule est récupérée dans SQLite ;
+- des modifications portant sur des champs différents sont fusionnées ;
+- une correction distante protégée dans `overrides` est prioritaire sur une nouvelle valeur automatique locale pour le champ concerné ;
+- deux modifications concurrentes différentes sur le même champ sont signalées comme conflit ;
+- les suppressions locales ou distantes ne sont pas propagées automatiquement.
+
+Les mises à jour des fiches existantes sont envoyées par lots via la fonction PostgreSQL `public.sync_update_entreprises_batch`. Chaque ligne transporte la révision attendue : si la fiche a changé sur le serveur entre-temps, l'écriture est refusée et signalée comme conflit.
+
+En cas de conflit :
+
+1. lire le bilan et identifier la fiche et les champs concernés ;
+2. comparer la valeur locale, la valeur distante et la correction attendue ;
+3. décider explicitement quelle valeur conserver ;
+4. effectuer la correction dans la base appropriée ;
+5. relancer `sh ./stage-explorer.sh --sync`.
+
+Une synchronisation peut avoir appliqué certaines opérations avant de rencontrer un conflit. Le bilan est alors partiel : les opérations déjà confirmées ne sont pas annulées automatiquement. Il faut donc toujours relancer la synchronisation après résolution.
+
+**Ne jamais supprimer les tables SQLite `sync_state` et `sync_meta`** : elles contiennent l'instantané de référence et le marqueur d'initialisation nécessaires à la fusion.
 
 ## Gestion des fiches
 
-Voir [la documentation des scripts](../scripts/README.md) pour les commandes permettant de lister, ajouter, modifier, masquer, afficher ou supprimer une fiche.
+Les fiches peuvent être corrigées de deux façons :
 
-Les corrections manuelles sont protégées par le mécanisme `overrides`. Les champs `stage` et `note` sont publiés dans la vue publique : ne saisir que des informations destinées à être rendues publiques.
+- depuis le site, par un enseignant autorisé : les modifications sont écrites directement dans Supabase et protégées dans `overrides` ;
+- avec `scripts/entreprises.py` : les modifications sont locales à SQLite jusqu'à la prochaine synchronisation.
 
-## Modification des fiches depuis le site
+Les commandes de gestion et les règles de publication sont décrites dans [Gestion des fiches](gestion-fiches.md). La création des comptes et la liste blanche des enseignants sont décrites dans [Administration des enseignants](administration.md).
 
-Les enseignants se connectent avec leur compte individuel. La session est conservée par Supabase Auth dans le navigateur jusqu’à déconnexion ou expiration. Les visiteurs non connectés restent en consultation seule.
+Les champs `stage` et `note` sont exposés dans la vue publique : ne saisir que des informations destinées à être diffusées.
 
-Les modifications web sont envoyées directement à Supabase. Un déclencheur ajoute automatiquement les champs modifiés à `overrides` afin que la synchronisation locale ne remplace pas ces corrections par les données automatiques.
+## Sauvegardes, publication et confidentialité
 
-La gestion des comptes est décrite dans [Administration des enseignants](administration.md).
-
-## Publication
-
-Après une mise à jour réussie, vérifier les modifications :
-
-```bash
-git status
-```
-
-La branche de travail du module d’administration est `module-administration`. Ne pas pousser sur `main` ni fusionner la branche sans décision explicite. La publication GitHub Pages est déclenchée par le workflow configuré sur la branche de publication.
-
-## Sauvegardes et confidentialité
-
-- Conserver des sauvegardes régulières de `database/entreprises.db`, qui contient aussi l'état de synchronisation.
-- Les exports `public/data/lieux.json` et `public/data/lieux-stage-ciel.csv` sont des sauvegardes/exportations, pas la base centrale.
-- Le dépôt étant public, ne jamais y enregistrer de clé Supabase secrète, de donnée personnelle ou d'information confidentielle.
-- La clé `service_role` doit rester dans l'environnement local des scripts. Seule la clé publishable destinée au navigateur peut être utilisée par le site.
+- Conserver des sauvegardes régulières de `database/entreprises.db`, qui contient les fiches locales et l'état de synchronisation.
+- Les exports `public/data/lieux.json` et `public/data/lieux-stage-ciel.csv` sont des sauvegardes/exportations secondaires, pas la base centrale.
+- Le dépôt étant public, tout fichier versionné et tout son historique Git sont accessibles publiquement. Ne pas y enregistrer de clé secrète, de donnée personnelle ou d'information confidentielle.
+- La clé `service_role` / secret est réservée aux scripts locaux. Le navigateur utilise uniquement la clé publishable.
+- Après une mise à jour, contrôler les changements avec `git status`. La publication du code et des ressources statiques est distincte de la mise à jour des fiches Supabase.
+- La branche stable est `main`. Le développement du module d'administration se fait sur `module-administration` ; ne pas fusionner ni publier cette branche sans validation explicite.
