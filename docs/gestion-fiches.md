@@ -54,7 +54,13 @@ Les modifications locales de champs automatiques sont suivies dans `overrides` e
 
 ## 4. Initialiser le premier jeu de données Supabase
 
-Cette opération ne se fait qu'au moment de créer la base centrale à partir d'une base locale déjà construite. Elle ne doit pas être confondue avec l'installation d'un poste supplémentaire.
+Cette opération ne se fait qu'au moment de créer la base centrale. Elle ne doit pas être confondue avec l'installation d'un poste supplémentaire. Depuis la racine du dépôt, lancer :
+
+```bash
+sh ./stage-explorer.sh --init-base
+```
+
+Le script demande de saisir `INITIALISER` avant de commencer. Il enchaîne la collecte (en réutilisant le cache disponible), la construction, l'intégration dans SQLite, l'import initial vers Supabase puis l'export local. Les étapes manuelles ci-dessous décrivent ce que réalise le script.
 
 1. Cloner le dépôt et se placer dans sa racine.
 2. Définir `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` dans l'environnement du terminal.
@@ -102,12 +108,12 @@ export SUPABASE_SERVICE_ROLE_KEY="CLE_SECRETE_SUPABASE"
 Récupérer la base centrale dans SQLite :
 
 ```bash
-./stage-explorer.sh --init-poste
+sh ./stage-explorer.sh --init-poste
 ```
 
 La commande sauvegarde automatiquement une base locale existante sous un nom `database/entreprises.avant-initial-pull-AAAAMMJJ-HHMMSS.db`, remplace les fiches SQLite par celles de Supabase et reconstruit les instantanés de synchronisation. Elle n'envoie aucune donnée au serveur.
 
-Après cette initialisation, le poste est prêt pour la synchronisation et les mises à jour habituelles. La première exécution de `./stage-explorer.sh --maj` peut être longue si le cache de collecte est vide.
+Après cette initialisation, le poste est prêt pour la synchronisation et les mises à jour habituelles. La première exécution de `sh ./stage-explorer.sh --maj` peut être longue si le cache de collecte est vide.
 
 **Ne pas utiliser `--initial-import` sur un poste secondaire** : cette commande sert à envoyer une base locale de référence vers Supabase.
 
@@ -116,7 +122,7 @@ Après cette initialisation, le poste est prêt pour la synchronisation et les m
 Depuis le poste de travail, la commande à privilégier est :
 
 ```bash
-./mettre-a-jour.sh
+sh ./stage-explorer.sh --maj
 ```
 
 Elle enchaîne, dans cet ordre :
@@ -128,15 +134,15 @@ Elle enchaîne, dans cet ordre :
 5. seconde synchronisation SQLite ↔ Supabase pour transmettre les nouveautés et mises à jour ;
 6. export local JSON / CSV de sauvegarde.
 
-Pour forcer le renouvellement des caches API concernés, utiliser `./stage-explorer.sh --maj-api`. Pour synchroniser uniquement les fiches existantes, sans collecte ni reconstruction, utiliser `./stage-explorer.sh --sync`.
+Pour forcer le renouvellement des caches API concernés, utiliser `sh ./stage-explorer.sh --maj-api`. Pour synchroniser uniquement les fiches existantes, sans collecte ni reconstruction, utiliser `sh ./stage-explorer.sh --sync`.
 
 En cas de conflit, arrêter le traitement, examiner les champs indiqués, décider quelle valeur conserver, puis relancer la synchronisation. Une synchronisation peut avoir déjà appliqué certaines opérations avant de signaler un conflit : le bilan indique les opérations réalisées et elles ne sont pas annulées automatiquement.
 
 ## 6.1. Choisir entre synchronisation et mise à jour
 
-- `./stage-explorer.sh --sync` : synchronise uniquement SQLite et Supabase. Aucune API n'est interrogée et aucune reconstruction n'est lancée.
-- `./stage-explorer.sh --maj` : relance la collecte en réutilisant le cache, reconstruit les fiches, met à jour SQLite, synchronise Supabase et génère les exports.
-- `./stage-explorer.sh --maj-api` : même chaîne que `--maj`, mais force le rafraîchissement des caches de collecte concernés.
+- `sh ./stage-explorer.sh --sync` : synchronise uniquement SQLite et Supabase. Aucune API n'est interrogée et aucune reconstruction n'est lancée.
+- `sh ./stage-explorer.sh --maj` : relance la collecte en réutilisant le cache, reconstruit les fiches, met à jour SQLite, synchronise Supabase et génère les exports.
+- `sh ./stage-explorer.sh --maj-api` : même chaîne que `--maj`, mais force le rafraîchissement des caches de collecte concernés.
 
 ## 7. Sécurité et sauvegardes
 
