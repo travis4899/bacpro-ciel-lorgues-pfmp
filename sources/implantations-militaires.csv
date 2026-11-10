@@ -1,0 +1,25 @@
+id;nom;adresse;cp;ville;lat;lon;tel;mail;web
+defense-canjuers;Camp militaire de Canjuers;Entrée principale RD955;83131;Montferrat;43.646585;6.469134;;;
+defense-1rca;1er régiment de chasseurs d'Afrique (1er RCA);Quartier Bernard de Lattre de Tassigny BP 04;83998;Canjuers Cedex;43.646585;6.469134;04 94 39 25 89;1rca.communication.fct@def.gouv.fr;
+defense-3rama;3e régiment d'artillerie de marine (3e RAMa);Quartier Colonel Fieschi;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-4rmat-canjuers;4e régiment du matériel (4e RMAT) – détachement de Canjuers;Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-52cadl;52e compagnie d'aide au déploiement lourd (52e CADL);Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-gmu;Groupement de munitions de Canjuers;Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-ecole-genie;École du génie – détachement de Canjuers;Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-2reg;2e régiment étranger de génie (2e REG) – détachement de Canjuers;Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-gsbdd-canjuers;Groupement de soutien de la base de défense (GSBDD) – pôle Canjuers;Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-usid-canjuers;Antenne USID – Canjuers;Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-cirisi-canjuers;Antenne CIRISI – Canjuers;Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-cma-canjuers;Antenne médicale – Canjuers (9e CMA);Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-ctas-canjuers;Antenne CTAS – Canjuers;Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-dseo-canjuers;Détachement du service de l'énergie opérationnelle (DSEO) – Canjuers;Camp militaire de Canjuers;83998;Canjuers Cedex;43.646585;6.469134;;;
+defense-ealat;État-major de l'École de l'aviation légère de l'armée de Terre (EALAT);Quartier général Lejay – Base école Général Lejay;83340;Le Cannet-des-Maures;;;;;
+defense-2rhc;Base école du 2e régiment d'hélicoptères de combat (2e RHC);Quartier général Lejay – Base école Général Lejay;83340;Le Cannet-des-Maures;;;;;
+defense-pcs-tigre;Poste de commandement soutien Tigre (PCS Tigre);Quartier général Lejay – Base école Général Lejay;83340;Le Cannet-des-Maures;;;;;
+defense-gsbdd-cannet;Groupement de soutien de la base de défense (GSBDD) – pôle du Cannet-des-Maures;Quartier général Lejay;83340;Le Cannet-des-Maures;;;;;
+defense-usid-cannet;Antenne USID – Le Cannet-des-Maures;Quartier général Lejay;83340;Le Cannet-des-Maures;;;;;
+defense-cirisi-cannet;Antenne CIRISI – Le Cannet-des-Maures;Quartier général Lejay;83340;Le Cannet-des-Maures;;;;;
+defense-cma-cannet;Antenne médicale – Le Cannet-des-Maures (9e CMA);Quartier général Lejay;83340;Le Cannet-des-Maures;;;;;
+defense-ctas-cannet;Antenne CTAS – Le Cannet-des-Maures;Quartier général Lejay;83340;Le Cannet-des-Maures;;;;;
+defense-dseo-cannet;Détachement du service de l'énergie opérationnelle (DSEO) – Le Cannet-des-Maures;Quartier général Lejay;83340;Le Cannet-des-Maures;;;;;
+defense-emd;Écoles militaires de Draguignan (EMD);Quartier Bonaparte BP 400;83007;Draguignan Cedex;;;;04 83 08 15 01;;
