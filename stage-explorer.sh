@@ -12,12 +12,12 @@ usage() {
 Stage Explorer — gestion de la base locale et de Supabase
 
 Usage :
-  ./stage-explorer.sh --init-base       Première construction et import dans Supabase
-  ./stage-explorer.sh --init-poste      Initialise SQLite depuis Supabase (sans envoi)
-  ./stage-explorer.sh --sync            Synchronise uniquement SQLite et Supabase
-  ./stage-explorer.sh --maj             Mise à jour complète avec les caches existants
-  ./stage-explorer.sh --maj-api         Mise à jour complète avec rafraîchissement des API
-  ./stage-explorer.sh --help
+  sh ./stage-explorer.sh --init-base       Première construction et import dans Supabase
+  sh ./stage-explorer.sh --init-poste      Initialise SQLite depuis Supabase (sans envoi)
+  sh ./stage-explorer.sh --sync            Synchronise uniquement SQLite et Supabase
+  sh ./stage-explorer.sh --maj             Mise à jour complète avec les caches existants
+  sh ./stage-explorer.sh --maj-api         Mise à jour complète avec rafraîchissement des API
+  sh ./stage-explorer.sh --help
 
 Options complémentaires :
   --verbose       Affiche le détail des synchronisations Supabase
@@ -57,6 +57,13 @@ done
 
 command -v python3 >/dev/null 2>&1 || erreur "python3 est introuvable."
 [ -f "$SCRIPTS/supabase_sync.py" ] || erreur "scripts/supabase_sync.py est introuvable."
+
+if [ -z "${SUPABASE_URL:-}" ]; then
+  erreur "SUPABASE_URL n'est pas définie dans l'environnement."
+fi
+if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ] && [ -z "${SUPABASE_SECRET_KEY:-}" ]; then
+  erreur "Définis SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SECRET_KEY) dans l'environnement."
+fi
 
 case "$MODE" in
   --init-base)
