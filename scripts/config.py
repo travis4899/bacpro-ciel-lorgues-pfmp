@@ -63,7 +63,16 @@ MOTS_CLES = ["cybersécurité", "cybersecurite", "cyber", "sécurité informatiq
              "sécurité des systèmes d'information", "pentest", "infogérance", "réseaux informatiques",
              "fibre optique", "courants faibles", "câblage", "alarme", "vidéosurveillance", "vidéoprotection", "domotique",
              "contrôle d'accès", "sécurité incendie", "protection civile", "sécurité civile", "télésurveillance", "sûreté", "antenne", "automatisme", "électronique",
-             "informatique", "hébergement", "RGPD"]
+             "informatique", "hébergement", "RGPD",
+             # Défense : unités, emprises et services interarmées (06, 13, 83)
+             "armée", "armées", "militaire", "militaires", "forces armées",
+             "base de défense", "base militaire", "camp militaire", "camp de Canjuers",
+             "écoles militaires", "école militaire", "EALAT", "2e régiment hélicoptères",
+             "2e RHC", "21e RIMa", "54e régiment artillerie", "3e régiment artillerie marine",
+             "1er régiment chasseurs Afrique", "4e régiment matériel", "519e régiment train",
+             "UIISC 7", "CIRISI", "DIRISI", "DGA", "atelier industriel aéronautique",
+             "base aéronautique navale", "base navale", "Pôle écoles Méditerranée",
+             "Économat des armées", "groupement de soutien base défense"]
 
 # Grandes structures : on collecte les unités légales de 20 salariés et plus (tous secteurs)
 TRANCHES_GRANDES = ["12", "21", "22", "31", "32", "41", "42", "51", "52", "53"]
