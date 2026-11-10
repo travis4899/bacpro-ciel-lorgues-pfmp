@@ -92,6 +92,14 @@ Les corrections manuelles sont conservées dans la colonne `overrides` et proté
 
 Une fiche masquée ou signalée absente du calcul automatique n'est pas publiée. La gestion détaillée depuis le site et depuis les scripts est décrite dans [Gestion des fiches](docs/gestion-fiches.md).
 
+## Documentation technique
+
+- [Maintenance](docs/MAINTENANCE.md) : commandes d'exploitation, initialisation des postes, synchronisation, conflits et sauvegardes.
+- [Architecture Supabase](docs/architecture-supabase.md) : modèle de données, sécurité, accès et fonctionnement de la synchronisation.
+- [Gestion des fiches](docs/gestion-fiches.md) : procédures de correction depuis le site ou les scripts.
+- [Administration des enseignants](docs/administration.md) : comptes et droits d'accès.
+- [Documentation des scripts](scripts/README.md) : rôle et options des scripts internes.
+
 ## Pour les élèves
 
 - Carte et liste interactives des entreprises.
@@ -122,7 +130,7 @@ La procédure de création des comptes enseignants est décrite dans [la documen
 | `sources/` | Listes et fichiers fournis par l'enseignant pour enrichir la collecte. |
 | `cache/` | Réponses d'API et caches d'enrichissement locaux, régénérables. |
 | `donnees/lieux_auto.json` | Résultat intermédiaire de la construction automatique. |
-| `database/entreprises.db` | Base SQLite de référence, avec les fiches et corrections manuelles. |
+| `database/entreprises.db` | Copie locale de travail de Supabase, avec les fiches, corrections et états de synchronisation. |
 | `public/data/` | Référentiels JSON et exports JSON/CSV conservés comme sauvegarde. |
 | `public/` | Site statique publié par GitHub Pages. |
 
