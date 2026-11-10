@@ -132,6 +132,17 @@ Le dépôt est public : la base `database/entreprises.db`, les fichiers du site 
 
 La carte lit les fiches dans la vue Supabase `public.lieux_publics`, avec une clé publishable et les règles RLS. Les fichiers JSON locaux encore chargés par le site ne contiennent que des référentiels secondaires (NAF, communes, contours et métadonnées) ; `lieux.json` est conservé comme sauvegarde et n'est plus la source principale du site. La clé `service_role` ne doit jamais être intégrée au navigateur.
 
+## Origine et projet de référence
+
+Stage Explorer est un projet dérivé de **Trouve Ta Voie PFMP**, développé au lycée Louise Michel de Ruffec :
+
+- Projet de référence : [Trouve Ta Voie PFMP — Forge des Apps Éducation](https://forge.apps.education.fr/bacprociel/lp-louise-michel-ruffec/Trouve_Ta_Voie_PFMP)
+- Adaptation : **Stage Explorer**, destinée à la section Bac Pro CIEL du lycée de Lorgues.
+
+L'essentiel du code source initial provient du projet de référence. Stage Explorer en reprend la base et l'a fait évoluer, notamment par des modifications des scripts de collecte et de traitement des données, ainsi que par une évolution importante de l'architecture : les données sont désormais centralisées dans **Supabase**, avec une base **SQLite locale** utilisée pour le travail, la synchronisation et les sauvegardes.
+
+Les développements et adaptations propres à Stage Explorer ne doivent pas être confondus avec le code repris du projet d'origine. Les droits et conditions de réutilisation du code source initial restent ceux de sa licence d'origine.
+
 ## Sources et licences
 
 Les sources de données et leurs licences sont indiquées dans l'interface. Code sous licence MIT.
