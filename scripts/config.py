@@ -64,24 +64,17 @@ MOTS_CLES = ["cybersécurité", "cybersecurite", "cyber", "sécurité informatiq
              "fibre optique", "courants faibles", "câblage", "alarme", "vidéosurveillance", "vidéoprotection", "domotique",
              "contrôle d'accès", "sécurité incendie", "protection civile", "sécurité civile", "télésurveillance", "sûreté", "antenne", "automatisme", "électronique",
              "informatique", "hébergement", "RGPD",
-             # Défense : unités, emprises et services interarmées (06, 13, 83)
-             "armée", "armées", "militaire", "militaires", "forces armées",
-             "base de défense", "base militaire", "camp militaire", "camp de Canjuers",
-             "écoles militaires", "école militaire", "EALAT", "2e régiment hélicoptères",
-             "2e RHC", "21e RIMa", "54e régiment artillerie", "3e régiment artillerie marine",
-             "1er régiment chasseurs Afrique", "4e régiment matériel", "519e régiment train",
-             "UIISC 7", "CIRISI", "DIRISI", "DGA", "atelier industriel aéronautique",
-             "base aéronautique navale", "base navale", "Pôle écoles Méditerranée",
-             "Économat des armées", "groupement de soutien base défense",
-             # Implantations et unités identifiées dans le Var : requêtes ciblées complémentaires
-             "quartier Général Lejay", "base école du Cannet-des-Maures", "école d’application de l’aviation légère",
-             "52e compagnie aide au déploiement lourd", "groupement de munitions de Canjuers",
-             "école du génie de Canjuers", "base de défense de Draguignan", "groupement de soutien base de défense",
-             "CMA de Draguignan", "USID Canjuers", "CTAS Canjuers", "DSEO Canjuers",
-             "CIRISI Canjuers", "CIRISI Cannet-des-Maures", "atelier industriel aéronautique de Cuers",
-             "hôpital militaire Sainte-Anne", "base aéronautique navale de Hyères",
-             "Pôle écoles Méditerranée Saint-Mandrier", "519e régiment du train Ollioules",
-             "21e régiment infanterie marine Fréjus", "54e régiment artillerie Hyères"]
+             # Défense : requêtes ciblées. Les implantations sont aussi chargées depuis
+             # sources/implantations-militaires.csv car les unités ne sont pas toujours
+             # indexées séparément dans SIRENE.
+             "EALAT", "2e RHC", "camp de Canjuers", "1er RCA", "3e RAMa", "4e RMAT",
+             "52e CADL", "groupement de munitions de Canjuers", "école du génie de Canjuers",
+             "écoles militaires de Draguignan", "CIRISI", "DIRISI", "GSBDD Draguignan",
+             "USID Canjuers", "CTAS Canjuers", "DSEO Canjuers",
+             "atelier industriel aéronautique de Cuers", "DGA essais missiles",
+             "base aéronautique navale de Hyères", "Pôle écoles Méditerranée Saint-Mandrier",
+             "UIISC 7 Brignoles", "21e RIMa Fréjus", "54e RA Hyères",
+             "519e régiment du train Ollioules", "Économat des armées"]
 
 # Grandes structures : on collecte les unités légales de 20 salariés et plus (tous secteurs)
 TRANCHES_GRANDES = ["12", "21", "22", "31", "32", "41", "42", "51", "52", "53"]
