@@ -33,17 +33,17 @@ def categorie(code, nom=""):
     c = code or ""
     nom = nrm(nom)
     # Les associations et amicales liées aux unités ne sont pas des employeurs militaires.
-    if re.search(r"\\b(AMICALE|ASSOCIATION|CLUB SPORTIF|ANCIENS|EVAT)\\b", nom):
+    if re.search(r"\b(AMICALE|ASSOCIATION|CLUB SPORTIF|ANCIENS|EVAT)\b", nom):
         return "autre"
     if c == "84.22Z" or re.search(
         r"MINISTERE DES ARMEES|DIRECTION GENERALE DE L ARMEMENT|BASE DE DEFENSE|"
-        r"CAMP DE CANJUERS|EALAT|\\b2E RHC\\b|\\b21E RIMA\\b|\\b54E RA\\b|"
-        r"\\b3E RAMA\\b|\\b1ER RCA\\b|\\b4E RMAT\\b|\\b519E RT\\b|"
+        r"CAMP DE CANJUERS|EALAT|\b2E RHC\b|\b21E RIMA\b|\b54E RA\b|"
+        r"\b3E RAMA\b|\b1ER RCA\b|\b4E RMAT\b|\b519E RT\b|"
         r"UIISC ?7|CIRISI|DIRISI|DGA ESSAIS MISSILES|ATELIER INDUSTRIEL DE L AERONAUTIQUE|"
         r"BASE AERONAUTIQUE NAVALE|BASE NAVALE DE TOULON|POLE ECOLES MEDITERRANEE|"
         r"ECONOMAT DES ARMEES|GROUPEMENT DE SOUTIEN.*BASE DE DEFENSE|ECOLES MILITAIRES|"
         r"BASE ECOLE.*2E RHC|QUARTIER GENERAL LEJAY|52E CADL|GROUPEMENT DE MUNITIONS|"
-        r"GSBDD|USID|\\b9E CMA\\b|\\bCTAS\\b|\\bDSEO\\b|ECOLE DU GENIE|\\b2E REG\\b",
+        r"GSBDD|USID|\b9E CMA\b|\bCTAS\b|\bDSEO\b|ECOLE DU GENIE|\b2E REG\b",
         nom
     ): return "armee"
     if c == "84.24Z" or re.search(r"GENDARMERIE|POLICE NATIONALE|POLICE MUNICIPALE|PREFECTURE DE POLICE|SECURITE PUBLIQUE", nom): return "securite"
