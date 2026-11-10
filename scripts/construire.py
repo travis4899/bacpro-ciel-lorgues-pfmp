@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from api import UA
 from config import (ROOT, CACHE, CATEGORIES, CODES_NAF, PERIMETRE_SEULEMENT, DEPARTEMENTS, EMPLOYEUR, EXCLUS_GRANDES, DONNEES, PUBLIC,
-                    SOURCES, SOURCES_LABELS, TRANCHES)
+                    SOURCES, SOURCES_LABELS, TRANCHES, MOTS_CLES)
 from l93 import l93_to_wgs
 from collecte import blocs_vrac, sirens_inpi
 from sites_web import decouvrir, tel_fr, visiter
