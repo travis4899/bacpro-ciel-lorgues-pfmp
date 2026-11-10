@@ -56,13 +56,27 @@ Les modifications locales de champs automatiques sont suivies dans `overrides` e
 
 Cette opération ne se fait qu'au moment de créer la base centrale à partir d'une base locale déjà construite. Elle ne doit pas être confondue avec l'installation d'un poste supplémentaire.
 
-1. Préparer la base SQLite de référence.
+1. Cloner le dépôt et se placer dans sa racine.
 2. Définir `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` dans l'environnement du terminal.
-3. Effectuer une sauvegarde de `database/entreprises.db`.
-4. Importer explicitement les fiches locales :
+3. Construire le premier jeu de données local à partir des sources :
+
+```bash
+python3 scripts/collecte.py
+python3 scripts/construire.py
+python3 scripts/sqlite_sync.py --sync-auto --geocode
+```
+
+4. Vérifier la base SQLite et effectuer une sauvegarde de `database/entreprises.db`.
+5. Importer explicitement les fiches locales dans Supabase :
 
 ```bash
 python3 scripts/supabase_sync.py --initial-import
+```
+
+6. Générer les exports locaux de sauvegarde si nécessaire :
+
+```bash
+python3 scripts/sqlite_sync.py --export
 ```
 
 Cette commande vérifie les fiches déjà présentes sur Supabase, importe les fiches locales manquantes et enregistre les révisions / instantanés nécessaires. Elle refuse notamment de continuer si Supabase contient des fiches qui ne sont pas présentes dans la copie locale, ou si les fiches déjà présentes divergent. Elle peut reprendre un import interrompu après vérification des fiches déjà importées.
