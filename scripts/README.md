@@ -89,14 +89,16 @@ Supabase est la base centrale. SQLite est la copie de travail locale, utilisée 
 
 ### Configuration
 
-Définir les variables dans le terminal qui exécute les scripts :
+Le point d'entrée `stage-explorer.sh` charge automatiquement le fichier `.env` placé à la racine du dépôt. Créer ce fichier avec les variables nécessaires :
 
-```bash
-export SUPABASE_URL="https://krjazwnguzynfbckilxx.supabase.co"
-export SUPABASE_SERVICE_ROLE_KEY="la_cle_secrete_du_projet"
+```dotenv
+SUPABASE_URL=https://krjazwnguzynfbckilxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=la_cle_secrete_du_projet
 ```
 
-La clé secrète serveur peut aussi être fournie dans `SUPABASE_SECRET_KEY`. Elle ne doit jamais être inscrite dans un fichier suivi par Git, dans le JavaScript du site ou dans un dépôt public. Ne pas utiliser la clé publishable/anon pour ce script.
+La clé secrète serveur peut aussi être fournie dans `SUPABASE_SECRET_KEY`. Le fichier `.env` est ignoré par Git. Il ne doit jamais être ajouté au dépôt, ni la clé inscrite dans le JavaScript du site. Ne pas utiliser la clé publishable/anon pour ce script.
+
+Les variables déjà définies et non vides dans l'environnement du terminal restent prioritaires sur celles du fichier `.env`. Le fichier est chargé comme un fichier de configuration shell : n'y placer que des affectations de variables de confiance (`NOM=valeur`).
 
 ### Premier import (une seule fois)
 
