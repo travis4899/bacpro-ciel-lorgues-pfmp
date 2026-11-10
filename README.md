@@ -30,12 +30,13 @@ Python 3.10 ou supérieur est recommandé. Les scripts utilisent principalement 
 ```bash
 git clone https://github.com/travis4899/bacpro-ciel-lorgues-pfmp.git
 cd bacpro-ciel-lorgues-pfmp
+chmod +x stage-explorer.sh
 ```
 
 Définir ensuite les variables d'environnement `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` (voir [la documentation des scripts](scripts/README.md#4-synchroniser-avec-supabase--supabase_syncpy)). Pour un poste de travail neuf, initialiser SQLite depuis la base centrale :
 
 ```bash
-./stage-explorer.sh --init-poste
+sh ./stage-explorer.sh --init-poste
 ```
 
 Cette commande crée la base locale si nécessaire, sauvegarde une éventuelle base existante, puis récupère les fiches et l'état de synchronisation depuis Supabase. Elle n'envoie aucune donnée vers le serveur. Il ne faut pas utiliser `--initial-import` pour cette opération.
@@ -45,13 +46,13 @@ Cette commande crée la base locale si nécessaire, sauvegarde une éventuelle b
 Mise à jour habituelle (réutilise les réponses déjà présentes dans le cache) :
 
 ```bash
-./stage-explorer.sh --maj
+sh ./stage-explorer.sh --maj
 ```
 
 Rafraîchissement des sources de collecte (supprime le cache des API de collecte concernées avant de télécharger à nouveau les données) :
 
 ```bash
-./stage-explorer.sh --maj-api
+sh ./stage-explorer.sh --maj-api
 ```
 
 La commande `--maj` enchaîne :
