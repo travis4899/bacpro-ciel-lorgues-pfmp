@@ -439,7 +439,7 @@
       const {data,error}=await supabaseClient.from("entreprises").update(payload).eq("siret",target.siret).select("siret").maybeSingle();
       button.disabled=false; button.textContent="Enregistrer";
       if (error || !data) { errorBox.textContent=error ? "Enregistrement impossible : "+error.message : "Aucune fiche modifiée. Vérifie tes droits."; errorBox.hidden=false; return; }
-      Object.assign(target,payload); refreshDerivedFields(target); editDialog.close(); apply();
+      Object.assign(target,payload); refreshDerivedFields(target); editDialog.close(); applyPreservingList();
       if (ficheRow===target) openFiche(target); toast("Fiche enregistrée");
     });
     async function updateStage(r, checked, input) {
@@ -449,7 +449,7 @@
       input.disabled=false;
       if (error || !data) { input.checked=!!r.stage; toast(error ? "Modification refusée : "+error.message : "Aucune fiche modifiée : droits insuffisants"); return; }
       r.stage=value; $("n-stage").textContent=rows.filter((item)=>!!item.stage).length;
-      updateMarker(r); apply(); if (ficheRow===r) openFiche(r);
+      updateMarker(r); applyPreservingList(); if (ficheRow===r) openFiche(r);
       toast(checked ? "Stage réalisé enregistré" : "Stage réalisé décoché");
     }
     async function updateMasked(r, checked, input) {
@@ -465,7 +465,7 @@
       }
       r.masquer=value; r._adminOnly=value ? true : !!r._originMasked;
       if (!value) { createMarker(r); updateMarker(r); }
-      apply();
+      applyPreservingList();
       toast(checked ? "Fiche masquée" : "Fiche rétablie");
     }
     document.addEventListener("click", (e) => {
@@ -562,6 +562,14 @@
       listEl.insertAdjacentHTML("beforeend", html); shown += PAGE;
       if (shown < current.length) listEl.insertAdjacentHTML("beforeend", `<div class="more"><button type="button">Afficher ${Math.min(PAGE, current.length - shown)} de plus (${current.length - shown} restants)</button></div>`);
     }
+    // Recalculer la liste sans perdre les lots déjà chargés ni la position de défilement.
+    function applyPreservingList() {
+      const previousShown = shown;
+      const previousScrollTop = listEl.scrollTop;
+      apply();
+      while (shown < previousShown && shown < current.length) renderMore();
+      listEl.scrollTop = previousScrollTop;
+    }
     listEl.addEventListener("click", (e) => {
       if (e.target.closest(".more button")) { renderMore(); return; }
       if (e.target.closest(".fav, .stage-toggle, .mask-toggle")) return;
@@ -621,9 +629,7 @@
       maskedFilterWrap.hidden = !isTeacher;
       maskedFilter.checked = state.showMasked;
       $("n-masked").textContent = rows.filter((r) => !!r.masquer).length;
-      const previousShown=shown;
-      apply();
-      while (shown<previousShown && shown<current.length) renderMore();
+      applyPreservingList();
       if (ficheRow && current.includes(ficheRow) && ficheRow.m) openFiche(ficheRow);
     };
     function focusRow(r) {
