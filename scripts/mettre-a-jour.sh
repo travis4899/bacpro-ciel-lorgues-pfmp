@@ -1,8 +1,8 @@
 #!/bin/sh
 # Mise à jour des données Stage Explorer avec Supabase comme base centrale.
-#   ./mettre-a-jour.sh               -> synchronisation, collecte, construction et export
-#   ./mettre-a-jour.sh --rafraichir  -> force le rafraîchissement des données sources
-#   ./mettre-a-jour.sh --verbose     -> détaille les valeurs échangées avec Supabase
+#   ./scripts/mettre-a-jour.sh               -> synchronisation, collecte, construction et export
+#   ./scripts/mettre-a-jour.sh --rafraichir  -> force le rafraîchissement des données sources
+#   ./scripts/mettre-a-jour.sh --verbose     -> détaille les valeurs échangées avec Supabase
 # Les variables SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY doivent être définies.
 set -eu
 
@@ -20,7 +20,7 @@ for arg in "$@"; do
       ;;
     *)
       echo "Option inconnue : $arg" >&2
-      echo "Usage : ./mettre-a-jour.sh [--rafraichir] [--verbose]" >&2
+      echo "Usage : ./scripts/mettre-a-jour.sh [--rafraichir] [--verbose]" >&2
       exit 2
       ;;
   esac
