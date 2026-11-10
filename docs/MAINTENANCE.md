@@ -28,7 +28,16 @@ Sans argument, le script affiche l'aide et ne lance aucune opération. Les comma
 
 L'option `--verbose` peut être ajoutée à `--init-base`, `--sync`, `--maj` ou `--maj-api` pour détailler les valeurs comparées pendant les synchronisations.
 
-Les opérations Supabase nécessitent les variables d'environnement `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` (ou `SUPABASE_SECRET_KEY`). La clé secrète reste dans l'environnement local : ne jamais la placer dans Git ni dans le code exécuté par le navigateur.
+Les opérations Supabase nécessitent `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` (ou `SUPABASE_SECRET_KEY`). Le point d'entrée charge automatiquement ces valeurs depuis le fichier `.env` placé à la racine du dépôt. Ce fichier local est ignoré par Git. Les variables déjà définies et non vides dans le terminal restent prioritaires. Ne jamais versionner la clé secrète ni l'intégrer au code exécuté par le navigateur.
+
+Exemple de fichier `.env` :
+
+```dotenv
+SUPABASE_URL=https://krjazwnguzynfbckilxx.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=la_cle_secrete_du_projet
+```
+
+Le fichier est interprété comme une configuration shell de confiance : utiliser uniquement des affectations simples `NOM=valeur`.
 
 ### Mise à jour habituelle
 
