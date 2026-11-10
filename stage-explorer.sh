@@ -25,8 +25,8 @@ Options complémentaires :
   --verbose       Affiche le détail des synchronisations Supabase
   -h, --help      Affiche cette aide
 
-Les variables SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SECRET_KEY)
-doivent être définies dans l'environnement pour les opérations Supabase.
+Les identifiants Supabase peuvent être définis dans le fichier .env à la racine
+du dépôt ou directement dans l'environnement du terminal.
 EOF
 }
 
@@ -60,14 +60,56 @@ if [ -z "$MODE" ]; then
   exit 0
 fi
 
+# Charger la configuration locale. Le .env est un fichier de confiance,
+# contenant des affectations shell (KEY=VALUE). Les variables déjà définies
+# et non vides dans l'environnement du terminal restent prioritaires.
+if [ -f "$ROOT/.env" ]; then
+  _SE_KEEP_URL=""
+  _SE_KEEP_SERVICE_ROLE_KEY=""
+  _SE_KEEP_SECRET_KEY=""
+
+  if [ -n "${SUPABASE_URL:-}" ]; then
+    _SE_KEEP_URL=1
+    _SE_OLD_URL=$SUPABASE_URL
+  fi
+  if [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+    _SE_KEEP_SERVICE_ROLE_KEY=1
+    _SE_OLD_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
+  fi
+  if [ -n "${SUPABASE_SECRET_KEY:-}" ]; then
+    _SE_KEEP_SECRET_KEY=1
+    _SE_OLD_SECRET_KEY=$SUPABASE_SECRET_KEY
+  fi
+
+  set -a
+  . "$ROOT/.env"
+  set +a
+
+  if [ "$_SE_KEEP_URL" = "1" ]; then
+    SUPABASE_URL=$_SE_OLD_URL
+    export SUPABASE_URL
+  fi
+  if [ "$_SE_KEEP_SERVICE_ROLE_KEY" = "1" ]; then
+    SUPABASE_SERVICE_ROLE_KEY=$_SE_OLD_SERVICE_ROLE_KEY
+    export SUPABASE_SERVICE_ROLE_KEY
+  fi
+  if [ "$_SE_KEEP_SECRET_KEY" = "1" ]; then
+    SUPABASE_SECRET_KEY=$_SE_OLD_SECRET_KEY
+    export SUPABASE_SECRET_KEY
+  fi
+
+  unset _SE_KEEP_URL _SE_KEEP_SERVICE_ROLE_KEY _SE_KEEP_SECRET_KEY
+  unset _SE_OLD_URL _SE_OLD_SERVICE_ROLE_KEY _SE_OLD_SECRET_KEY
+fi
+
 command -v python3 >/dev/null 2>&1 || erreur "python3 est introuvable."
 [ -f "$SCRIPTS/supabase_sync.py" ] || erreur "scripts/supabase_sync.py est introuvable."
 
 if [ -z "${SUPABASE_URL:-}" ]; then
-  erreur "SUPABASE_URL n'est pas définie dans l'environnement."
+  erreur "SUPABASE_URL est absente du fichier .env et de l'environnement."
 fi
 if [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ] && [ -z "${SUPABASE_SECRET_KEY:-}" ]; then
-  erreur "Définis SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SECRET_KEY) dans l'environnement."
+  erreur "Définis SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SECRET_KEY) dans .env ou dans l'environnement."
 fi
 
 case "$MODE" in
