@@ -3,18 +3,18 @@
 Les scripts sont exécutés localement par l'enseignant. Le point d'entrée unique est lancé depuis la racine du dépôt :
 
 ```bash
-./stage-explorer.sh --help
+sh ./stage-explorer.sh --help
 ```
 
 ## Commandes principales
 
 | Commande | Fonction |
 |---|---|
-| `./stage-explorer.sh --init-base` | Première construction locale puis import initial vers Supabase. À exécuter une seule fois pour créer la base centrale ; confirmation explicite demandée. |
-| `./stage-explorer.sh --init-poste` | Initialise ou remplace la copie SQLite depuis Supabase, après sauvegarde locale. N'envoie aucune donnée. |
-| `./stage-explorer.sh --sync` | Synchronise uniquement SQLite et Supabase, sans collecte ni reconstruction. |
-| `./stage-explorer.sh --maj` | Mise à jour complète en réutilisant les caches existants. |
-| `./stage-explorer.sh --maj-api` | Mise à jour complète en forçant le rafraîchissement des caches API concernés. |
+| `sh ./stage-explorer.sh --init-base` | Première construction locale puis import initial vers Supabase. À exécuter une seule fois pour créer la base centrale ; confirmation explicite demandée. |
+| `sh ./stage-explorer.sh --init-poste` | Initialise ou remplace la copie SQLite depuis Supabase, après sauvegarde locale. N'envoie aucune donnée. |
+| `sh ./stage-explorer.sh --sync` | Synchronise uniquement SQLite et Supabase, sans collecte ni reconstruction. |
+| `sh ./stage-explorer.sh --maj` | Mise à jour complète en réutilisant les caches existants. |
+| `sh ./stage-explorer.sh --maj-api` | Mise à jour complète en forçant le rafraîchissement des caches API concernés. |
 
 L'option `--verbose` peut être ajoutée à `--sync`, `--init-base`, `--maj` ou `--maj-api` pour afficher le détail des synchronisations Supabase.
 
@@ -100,7 +100,15 @@ La clé secrète serveur peut aussi être fournie dans `SUPABASE_SECRET_KEY`. El
 
 ### Premier import (une seule fois)
 
-Après avoir sauvegardé `database/entreprises.db`, lancer explicitement :
+Pour construire le premier jeu de données et l'importer dans Supabase, utiliser le point d'entrée :
+
+```bash
+sh ./stage-explorer.sh --init-base
+```
+
+Cette commande demande une confirmation explicite, puis enchaîne collecte, construction, intégration dans SQLite, import initial vers Supabase et export local. Elle est réservée à la toute première initialisation de la base centrale.
+
+L'import Python peut également être lancé directement après construction et sauvegarde de SQLite :
 
 ```bash
 python3 scripts/supabase_sync.py --initial-import
@@ -121,14 +129,14 @@ Si la base SQLite du poste est ancienne et que Supabase est la seule référence
 Utiliser à la place :
 
 ```bash
-./stage-explorer.sh --init-poste
+sh ./stage-explorer.sh --init-poste
 ```
 
 La commande sauvegarde d'abord la base SQLite, puis remplace localement les fiches et les instantanés par ceux téléchargés depuis Supabase. Elle initialise le marqueur nécessaire à la synchronisation normale et ne réalise aucune écriture distante.
 
 La sauvegarde créée porte un nom de la forme `database/entreprises.avant-initial-pull-AAAAMMJJ-HHMMSS.db`. La commande initialise également les instantanés de synchronisation (`sync_state`) et le marqueur `initial_import_done`.
 
-Sur un poste neuf, la séquence est donc : cloner le dépôt, définir `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY`, exécuter `python3 scripts/supabase_sync.py --initial-pull`, puis utiliser `./stage-explorer.sh --maj` pour lancer la collecte et la construction locales. L'initialisation seule ne lance pas de collecte.
+Sur un poste neuf, la séquence est donc : cloner le dépôt, définir `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY`, exécuter `sh ./stage-explorer.sh --init-poste`, puis utiliser `sh ./stage-explorer.sh --maj` pour lancer la collecte et la construction locales. L'initialisation seule ne lance pas de collecte.
 
 **À ne pas confondre :** `--initial-import` sert à envoyer vers Supabase une base SQLite locale qui constitue la première base de référence ; `--initial-pull` sert à reconstruire une copie locale depuis Supabase. Sur un second poste, c'est `--initial-pull` qu'il faut utiliser.
 
