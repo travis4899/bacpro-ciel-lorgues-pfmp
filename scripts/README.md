@@ -118,7 +118,11 @@ python3 scripts/supabase_sync.py --initial-pull
 
 La commande sauvegarde d'abord la base SQLite, puis remplace localement les fiches et les instantanés par ceux téléchargés depuis Supabase. Elle initialise le marqueur nécessaire à la synchronisation normale et ne réalise aucune écriture distante.
 
-La sauvegarde créée porte un nom de la forme `database/entreprises.avant-initial-pull-AAAAMMJJ-HHMMSS.db`. Une fois l'initialisation terminée, la commande habituelle `./mettre-a-jour.sh` peut être utilisée.
+La sauvegarde créée porte un nom de la forme `database/entreprises.avant-initial-pull-AAAAMMJJ-HHMMSS.db`. La commande initialise également les instantanés de synchronisation (`sync_state`) et le marqueur `initial_import_done`.
+
+Sur un poste neuf, la séquence est donc : cloner le dépôt, définir `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY`, exécuter `python3 scripts/supabase_sync.py --initial-pull`, puis utiliser `./mettre-a-jour.sh` pour lancer la collecte et la construction locales. L'initialisation seule ne lance pas de collecte.
+
+**À ne pas confondre :** `--initial-import` sert à envoyer vers Supabase une base SQLite locale qui constitue la première base de référence ; `--initial-pull` sert à reconstruire une copie locale depuis Supabase. Sur un second poste, c'est `--initial-pull` qu'il faut utiliser.
 
 ### Synchronisation courante
 
@@ -173,7 +177,9 @@ python3 scripts/entreprises.py afficher SIRET_OU_IDENTIFIANT
 python3 scripts/entreprises.py supprimer SIRET_OU_IDENTIFIANT
 ```
 
-Ce script permet de consulter et de gérer les fiches de `database/entreprises.db`. Une fiche masquée reste dans la base mais n'est pas exportée. La suppression est définitive ; la synchronisation ne propage pas automatiquement les suppressions et les signale comme conflits.
+Ce script agit uniquement sur les fiches de `database/entreprises.db` : il ne modifie pas directement Supabase. Après une modification ou un ajout, lancer `python3 scripts/supabase_sync.py --sync` pour transmettre les changements. Il est préférable de synchroniser avant de commencer à modifier une base locale qui n'a pas été utilisée récemment.
+
+Une fiche masquée reste dans la base mais n'est pas exportée. La suppression locale est définitive dans cette copie ; les suppressions ne sont pas propagées automatiquement et sont signalées comme conflits lors de la synchronisation. Pour retirer une fiche du site, préférer le masquage depuis le site ou la commande `masquer`.
 
 ## 6. Configuration et modules internes
 
@@ -191,7 +197,9 @@ Ces fichiers sont utilisés par les scripts principaux. Ils ne font pas partie d
 
 ## 7. Publication du site
 
-La publication est distincte de la collecte et de l'export.
+La publication du code et des ressources statiques est distincte de la mise à jour des fiches. Le site lit les fiches directement dans la vue Supabase `public.lieux_publics` ; une modification enregistrée depuis l'interface enseignant est donc disponible dans la base centrale sans export SQLite ni push Git.
+
+L'export `sqlite_sync.py --export` produit toujours `public/data/lieux.json` et `lieux-stage-ciel.csv`, utiles comme sauvegardes ou pour un usage externe, mais ils ne sont plus la source des fiches affichées par le site.
 
 Après avoir contrôlé les résultats localement, l'enseignant vérifie les fichiers modifiés :
 
