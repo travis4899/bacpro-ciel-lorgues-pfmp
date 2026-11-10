@@ -32,16 +32,18 @@ stats = Counter()
 def categorie(code, nom=""):
     c = code or ""
     nom = nrm(nom)
+    # Les associations et amicales liées aux unités ne sont pas des employeurs militaires.
+    if re.search(r"\\b(AMICALE|ASSOCIATION|CLUB SPORTIF|ANCIENS|EVAT)\\b", nom):
+        return "autre"
     if c == "84.22Z" or re.search(
-        r"ARMEE|FORCES ARMEES|BASE DE DEFENSE|BASE MILITAIRE|CAMP DE CANJUERS|"
-        r"REGIMENT|GARNISON|MINISTERE DES ARMEES|EALAT|\b2E RHC\b|\b21E RIMA\b|"
-        r"\b54E RA\b|\b3E RAMA\b|\b1ER RCA\b|\b4E RMAT\b|"
-        r"\b519E RT\b|UIISC ?7|CIRISI|DIRISI|\bDGA\b|ATELIER INDUSTRIEL DE L.AERONAUTIQUE|"
-        r"BASE AERONAUTIQUE NAVALE|BASE NAVALE|POLE ECOLES MEDITERRANEE|"
+        r"MINISTERE DES ARMEES|DIRECTION GENERALE DE L ARMEMENT|BASE DE DEFENSE|"
+        r"CAMP DE CANJUERS|EALAT|\\b2E RHC\\b|\\b21E RIMA\\b|\\b54E RA\\b|"
+        r"\\b3E RAMA\\b|\\b1ER RCA\\b|\\b4E RMAT\\b|\\b519E RT\\b|"
+        r"UIISC ?7|CIRISI|DIRISI|DGA ESSAIS MISSILES|ATELIER INDUSTRIEL DE L AERONAUTIQUE|"
+        r"BASE AERONAUTIQUE NAVALE|BASE NAVALE DE TOULON|POLE ECOLES MEDITERRANEE|"
         r"ECONOMAT DES ARMEES|GROUPEMENT DE SOUTIEN.*BASE DE DEFENSE|ECOLES MILITAIRES|"
-        r"BASE ECOLE|QUARTIER GENERAL LEJAY|52E CADL|GROUPEMENT DE MUNITIONS|"
-        r"GSBDD|USID|\b9E CMA\b|\bCMA\b|\bCTAS\b|\bDSEO\b|ECOLE DU GENIE|"
-        r"POLE ECOLES MEDITERRANEE|BASE ECOLE.*2E RHC|ECOLE D.APPLICATION.*AVIATION LEGERE",
+        r"BASE ECOLE.*2E RHC|QUARTIER GENERAL LEJAY|52E CADL|GROUPEMENT DE MUNITIONS|"
+        r"GSBDD|USID|\\b9E CMA\\b|\\bCTAS\\b|\\bDSEO\\b|ECOLE DU GENIE|\\b2E REG\\b",
         nom
     ): return "armee"
     if c == "84.24Z" or re.search(r"GENDARMERIE|POLICE NATIONALE|POLICE MUNICIPALE|PREFECTURE DE POLICE|SECURITE PUBLIQUE", nom): return "securite"
@@ -230,7 +232,17 @@ KW_NAF = ("62", "63", "58.2", "61", "26", "33.1", "33.2", "43.21", "42.22", "80.
 
 
 def lire_mots_cles():
-    for f in sorted((CACHE / "api" / "mots_cles").glob("*.json")):
+    # Ne lire que les caches correspondant aux mots-clés encore configurés.
+    # Les anciens fichiers de requêtes trop génériques restent sur le disque,
+    # mais ne doivent plus réintroduire leurs faux positifs.
+    dossier = CACHE / "api" / "mots_cles"
+    fichiers = sorted({
+        dossier / f"{q.replace(' ', '_')}_{d}.json"
+        for q in MOTS_CLES for d in DEPARTEMENTS
+    })
+    for f in fichiers:
+        if not f.exists():
+            continue
         for res in json.loads(f.read_text()):
             for e in etabs_zone(res):
                 r = from_api(res, e, "ajout")
@@ -239,6 +251,27 @@ def lire_mots_cles():
                     if add(r):
                         stats["ajout_mots_cles"] += 1
 
+
+def lire_implantations_militaires():
+    """Ajoute les implantations militaires documentées, même sans fiche SIRENE dédiée."""
+    path = SOURCES / "implantations-militaires.csv"
+    if not path.exists():
+        return
+    with path.open(encoding="utf-8-sig", newline="") as fh:
+        for row in csv.DictReader(fh, delimiter=";"):
+            ident = clean(row.get("id"))
+            if not ident:
+                continue
+            lat = float(row["lat"]) if row.get("lat") else None
+            lon = float(row["lon"]) if row.get("lon") else None
+            add(dict(
+                siret=ident, nom=clean(row.get("nom")), ens="", adr=clean(row.get("adresse")),
+                cp=clean(row.get("cp")), ville=clean(row.get("ville")), insee="",
+                naf="", t="", tu="", cat="armee", src="listing", siege=False,
+                lat=lat, lon=lon, approx=bool(lat is not None), tel=clean(row.get("tel")),
+                mail=clean(row.get("mail")), web=clean(row.get("web")), csrc={},
+                stage="", osm_type=""
+            ))
 
 def lire_grandes():
     """Sièges (entreprise >= 20 salariés) et sites >= 50 salariés : service informatique / DSI probable."""
@@ -554,7 +587,7 @@ def ecrire():
 
 if __name__ == "__main__":
     print("Lecture des sources…")
-    lire_annuaire(); lire_inpi(); lire_vrac(); lire_naf(); lire_mots_cles(); lire_grandes(); cybersecurite()
+    lire_annuaire(); lire_inpi(); lire_vrac(); lire_naf(); lire_mots_cles(); lire_implantations_militaires(); lire_grandes(); cybersecurite()
     print("Géocodage…"); geocoder()
     print("Contacts…"); contacts_service_public(); contacts_osm(); contacts_sites_web()
     for r in recs.values():
