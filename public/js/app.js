@@ -388,7 +388,7 @@
     function popup(r) {
       const q = encodeURIComponent(`${r.title} ${r.ville}`), fav = favs.has(r.siret);
       return `<div class="pop"><h3>${esc(r.title)}</h3>${r.ens ? `<div class="ens">${esc(r.nom)}</div>` : ""}
-      ${r.stage ? `<div class="stage">★ ${esc(r.stage)}</div>` : ""}
+      ${r.stage ? '<div class="stage">★ Stage réalisé</div>' : ""}
       <div class="tags"><span class="tag" style="border-color:${col(r.cat)}">${esc(CATS[r.cat])}</span><span class="tag">Pertinence : ${REL[r.rel]}</span>${r.siege == 1 ? '<span class="tag">Siège</span>' : ""}</div>
       ${ciel(r)}
       ${r.note ? `<div class="note">${esc(r.note)}</div>` : ""}
