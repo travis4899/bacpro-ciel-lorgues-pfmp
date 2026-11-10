@@ -31,6 +31,27 @@ Options :
 
 **Ne pas lancer la collecte ou l'export après une erreur de synchronisation.** Le script organisateur s'arrête en cas d'erreur ou de conflit afin d'éviter de poursuivre avec des données non réconciliées.
 
+## Initialiser un nouveau poste depuis Supabase
+
+Lorsqu'un poste possède une ancienne base SQLite qui ne doit pas être envoyée vers Supabase, l'initialisation doit se faire dans le sens **Supabase → SQLite uniquement**.
+
+Après avoir configuré les variables d'environnement Supabase, lancer depuis la racine du dépôt :
+
+```bash
+python3 scripts/supabase_sync.py --initial-pull
+```
+
+Cette commande :
+- télécharge toutes les fiches présentes dans Supabase ;
+- crée automatiquement une sauvegarde horodatée de `database/entreprises.db` ;
+- remplace le contenu local des tables `entreprises` et `sync_state` par les données distantes et leurs révisions ;
+- initialise `sync_meta.initial_import_done` ;
+- n'effectue **aucune écriture vers Supabase**.
+
+La transaction SQLite garantit que le remplacement local est annulé en cas d'erreur. La commande refuse également de remplacer la base locale si Supabase ne renvoie aucune fiche. Après réussite, la synchronisation normale peut être lancée avec `./mettre-a-jour.sh`.
+
+**Attention :** cette opération remplace les fiches locales. Ne l'utiliser que lorsque Supabase est bien la référence et que les éventuelles modifications locales ont été écartées ou sauvegardées.
+
 ## Synchronisation Supabase
 
 La synchronisation normale est :
