@@ -19,6 +19,8 @@ Usage :
   sh ./stage-explorer.sh --maj-api         Mise à jour complète avec rafraîchissement des API
   sh ./stage-explorer.sh --help
 
+Sans commande, cette notice est affichée et aucune opération n'est lancée.
+
 Options complémentaires :
   --verbose       Affiche le détail des synchronisations Supabase
   -h, --help      Affiche cette aide
@@ -53,7 +55,10 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-[ -n "$MODE" ] || { usage >&2; exit 2; }
+if [ -z "$MODE" ]; then
+  usage
+  exit 0
+fi
 
 command -v python3 >/dev/null 2>&1 || erreur "python3 est introuvable."
 [ -f "$SCRIPTS/supabase_sync.py" ] || erreur "scripts/supabase_sync.py est introuvable."
@@ -70,7 +75,8 @@ case "$MODE" in
     echo
     echo "ATTENTION : cette opération construit la base locale puis importe les fiches dans Supabase."
     echo "Elle est réservée à la toute première initialisation de la base centrale."
-    printf "Pour confirmer, saisir exactement INITIALISER : "
+    echo "Ne pas lancer cette commande pour mettre à jour une base existante ou initialiser un poste secondaire."
+    printf "Pour confirmer cette opération, saisir exactement INITIALISER : "
     IFS= read -r confirmation
     [ "$confirmation" = "INITIALISER" ] || erreur "Initialisation annulée."
 
