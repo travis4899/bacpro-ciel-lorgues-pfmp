@@ -72,7 +72,16 @@ MOTS_CLES = ["cybersécurité", "cybersecurite", "cyber", "sécurité informatiq
              "1er régiment chasseurs Afrique", "4e régiment matériel", "519e régiment train",
              "UIISC 7", "CIRISI", "DIRISI", "DGA", "atelier industriel aéronautique",
              "base aéronautique navale", "base navale", "Pôle écoles Méditerranée",
-             "Économat des armées", "groupement de soutien base défense"]
+             "Économat des armées", "groupement de soutien base défense",
+             # Implantations et unités identifiées dans le Var : requêtes ciblées complémentaires
+             "quartier Général Lejay", "base école du Cannet-des-Maures", "école d’application de l’aviation légère",
+             "52e compagnie aide au déploiement lourd", "groupement de munitions de Canjuers",
+             "école du génie de Canjuers", "base de défense de Draguignan", "groupement de soutien base de défense",
+             "CMA de Draguignan", "USID Canjuers", "CTAS Canjuers", "DSEO Canjuers",
+             "CIRISI Canjuers", "CIRISI Cannet-des-Maures", "atelier industriel aéronautique de Cuers",
+             "hôpital militaire Sainte-Anne", "base aéronautique navale de Hyères",
+             "Pôle écoles Méditerranée Saint-Mandrier", "519e régiment du train Ollioules",
+             "21e régiment infanterie marine Fréjus", "54e régiment artillerie Hyères"]
 
 # Grandes structures : on collecte les unités légales de 20 salariés et plus (tous secteurs)
 TRANCHES_GRANDES = ["12", "21", "22", "31", "32", "41", "42", "51", "52", "53"]
