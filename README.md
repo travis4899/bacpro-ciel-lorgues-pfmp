@@ -30,10 +30,15 @@ Python 3.10 ou supérieur est recommandé. Les scripts utilisent principalement 
 ```bash
 git clone https://github.com/travis4899/bacpro-ciel-lorgues-pfmp.git
 cd bacpro-ciel-lorgues-pfmp
-python3 -c "import sys; sys.path.insert(0, 'scripts'); from sqlite_db import connect; connect().close()"
 ```
 
-La base est créée automatiquement dans `database/entreprises.db` si elle n'existe pas.
+Définir ensuite les variables d'environnement `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` (voir [la documentation des scripts](scripts/README.md#4-synchroniser-avec-supabase--supabase_syncpy)). Pour un poste de travail neuf, initialiser SQLite depuis la base centrale :
+
+```bash
+python3 scripts/supabase_sync.py --initial-pull
+```
+
+Cette commande crée la base locale si nécessaire, sauvegarde une éventuelle base existante, puis récupère les fiches et l'état de synchronisation depuis Supabase. Elle n'envoie aucune donnée vers le serveur. Il ne faut pas utiliser `--initial-import` pour cette opération.
 
 ### Mettre à jour les données
 
@@ -60,16 +65,9 @@ Le script enchaîne :
 
 Le détail des scripts, de leurs options et des fichiers produits est décrit dans [scripts/README.md](scripts/README.md).
 
-Après l'exécution, vérifier les résultats et la carte localement. Puis versionner la base SQLite et les fichiers exportés :
+Après l'exécution, vérifier le bilan des synchronisations et la carte. Les fiches sont déjà enregistrées dans Supabase : elles sont lues directement par le site et ne nécessitent pas de commit Git pour être mises à jour.
 
-```bash
-git status
-git add database/entreprises.db public/data
-git commit -m "Mise à jour des entreprises"
-git push
-```
-
-Le push sur `main` lance automatiquement le déploiement GitHub Pages. Le workflow récupère le dépôt, téléverse `public/` comme artefact et le publie. Il ne lance ni collecte, ni construction, ni synchronisation SQLite.
+Les fichiers `database/entreprises.db` et `public/data/lieux.json` / `lieux-stage-ciel.csv` peuvent être versionnés comme sauvegardes locales, en gardant à l'esprit que le dépôt est public. Un push sur `main` sert à publier les changements de code et les référentiels statiques du site ; le workflow GitHub Actions ne lance ni collecte, ni construction, ni synchronisation SQLite.
 
 ### Gérer les fiches manuellement
 
@@ -88,9 +86,11 @@ python3 scripts/entreprises.py afficher SIRET_OU_IDENTIFIANT
 python3 scripts/entreprises.py supprimer SIRET_OU_IDENTIFIANT
 ```
 
-Les corrections manuelles sont conservées dans la colonne `overrides` et ne sont pas écrasées par les prochaines synchronisations automatiques. Les champs `stage` et `note` sont visibles dans la vue publique Supabase : ne saisir que des informations destinées à être rendues publiques.
+Ces commandes agissent uniquement sur la copie SQLite locale. Pour transmettre une modification faite avec `entreprises.py` à la base centrale, lancer ensuite `python3 scripts/supabase_sync.py --sync` (ou la mise à jour complète `./mettre-a-jour.sh`). Pour éviter un conflit, synchroniser d'abord le poste avec Supabase avant une intervention locale.
 
-Une fiche masquée ou signalée absente du calcul automatique n'est pas publiée.
+Les corrections manuelles sont conservées dans la colonne `overrides` et protégées des prochaines mises à jour automatiques. Les modifications effectuées depuis le site sont, elles, écrites directement dans Supabase. Les champs `stage` et `note` sont visibles dans la vue publique : ne saisir que des informations destinées à être rendues publiques.
+
+Une fiche masquée ou signalée absente du calcul automatique n'est pas publiée. La gestion détaillée depuis le site et depuis les scripts est décrite dans [Gestion des fiches](docs/gestion-fiches.md).
 
 ## Pour les élèves
 
