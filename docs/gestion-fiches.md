@@ -36,7 +36,7 @@ python3 scripts/entreprises.py afficher SIRET_OU_IDENTIFIANT
 python3 scripts/entreprises.py supprimer SIRET_OU_IDENTIFIANT
 ```
 
-Avant de modifier localement une fiche, synchroniser le poste pour récupérer les dernières corrections du site :
+Avant de modifier localement une fiche, synchroniser le poste pour récupérer les dernières corrections du site, **à condition de ne pas avoir de modifications locales en attente** : la commande est bidirectionnelle et envoie aussi les changements locaux déjà présents.
 
 ```bash
 python3 scripts/supabase_sync.py --sync
