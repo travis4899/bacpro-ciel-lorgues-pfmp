@@ -12,7 +12,7 @@ Le projet est administré par l'enseignant depuis son poste Linux. Les données 
 
 La chaîne de mise à jour est exécutée **manuellement par l'enseignant** :
 
-1. **Synchronisation préalable** — récupère dans SQLite les modifications déjà présentes dans Supabase.
+1. **Synchronisation préalable** — fusionne les changements des deux côtés : récupère dans SQLite les modifications du site et transmet à Supabase les changements locaux en attente.
 2. **Collecte** — interroge les sources de données et conserve les réponses dans le cache local.
 3. **Construction** — fusionne les sources, dédoublonne, classe les établissements, enrichit les contacts et prépare les données automatiques.
 4. **Synchronisation locale** — intègre les données automatiques dans SQLite, calcule les indicateurs CIEL et géocode les fiches manuelles si nécessaire.
