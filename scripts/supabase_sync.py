@@ -15,6 +15,7 @@ distant pour détecter les modifications concurrentes sans écrasement silencieu
 """
 import argparse
 import json
+from datetime import datetime
 import os
 import sqlite3
 import sys
@@ -22,7 +23,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from sqlite_db import connect
+from sqlite_db import DB_PATH, connect
 
 TABLE = "entreprises"
 PAGE_SIZE = 1000
@@ -401,6 +402,59 @@ def initial_import(db):
     )
 
 
+
+def initial_pull(db):
+    """Remplace la copie SQLite par Supabase, sans jamais écrire sur le serveur."""
+    remote = fetch_remote()
+    if not remote:
+        raise SyncError(
+            "Initialisation refusée : Supabase ne contient aucune fiche. "
+            "La base SQLite locale n'a pas été modifiée."
+        )
+
+    # Sauvegarde cohérente du fichier SQLite avant toute opération destructive.
+    db.commit()
+    backup_path = DB_PATH.with_name(
+        f"{DB_PATH.stem}.avant-initial-pull-{datetime.now().strftime('%Y%m%d-%H%M%S')}{DB_PATH.suffix}"
+    )
+    backup_db = sqlite3.connect(str(backup_path))
+    try:
+        db.backup(backup_db)
+    finally:
+        backup_db.close()
+    print(f"Sauvegarde de la base locale : {backup_path}", flush=True)
+
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        db.execute("DELETE FROM sync_state")
+        db.execute("DELETE FROM entreprises")
+
+        for index, siret in enumerate(sorted(remote), start=1):
+            record = remote[siret]
+            write_local(db, record)
+            save_state(db, siret, record)
+            if index % 1000 == 0:
+                print(f"  {index}/{len(remote)} fiches initialisées", flush=True)
+
+        db.execute(
+            """INSERT INTO sync_meta(cle, valeur)
+               VALUES ('initial_import_done', '1')
+               ON CONFLICT(cle) DO UPDATE SET valeur='1'"""
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    print(
+        f"Initialisation terminée : {len(remote)} fiches récupérées depuis Supabase. "
+        "Aucune donnée n'a été envoyée vers Supabase.",
+        flush=True,
+    )
+    print("La synchronisation normale peut maintenant être utilisée.")
+
+
+
 def synchronize(db, verbose=False):
     marker = db.execute(
         "SELECT valeur FROM sync_meta WHERE cle='initial_import_done'"
@@ -661,6 +715,8 @@ def main():
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--initial-import", action="store_true",
                       help="importe explicitement SQLite si Supabase est vide")
+    mode.add_argument("--initial-pull", action="store_true",
+                      help="remplace SQLite par Supabase après sauvegarde locale, sans envoi distant")
     mode.add_argument("--sync", action="store_true",
                       help="fusionne SQLite et Supabase avec détection des conflits")
     parser.add_argument("--verbose", action="store_true",
@@ -673,6 +729,8 @@ def main():
         try:
             if args.initial_import:
                 initial_import(db)
+            elif args.initial_pull:
+                initial_pull(db)
             else:
                 synchronize(db, verbose=args.verbose)
         finally:
