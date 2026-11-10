@@ -19,7 +19,7 @@ La chaîne de mise à jour est exécutée **manuellement par l'enseignant** :
 5. **Synchronisation Supabase** — envoie les changements locaux et fusionne les modifications distantes, avec détection des conflits.
 6. **Publication** — un push sur la branche `main` déclenche GitHub Actions, qui publie simplement le dossier `public/`. Aucun script Python ni export SQLite n'est exécuté sur GitHub.
 
-Les étapes de synchronisation, collecte et construction sont regroupées dans `mettre-a-jour.sh`.
+Les opérations sont regroupées dans `stage-explorer.sh`, le point d'entrée unique : initialisation de la base centrale, initialisation d'un poste, synchronisation seule ou mise à jour complète.
 
 ## Pour l'enseignant
 
@@ -35,7 +35,7 @@ cd bacpro-ciel-lorgues-pfmp
 Définir ensuite les variables d'environnement `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` (voir [la documentation des scripts](scripts/README.md#4-synchroniser-avec-supabase--supabase_syncpy)). Pour un poste de travail neuf, initialiser SQLite depuis la base centrale :
 
 ```bash
-python3 scripts/supabase_sync.py --initial-pull
+./stage-explorer.sh --init-poste
 ```
 
 Cette commande crée la base locale si nécessaire, sauvegarde une éventuelle base existante, puis récupère les fiches et l'état de synchronisation depuis Supabase. Elle n'envoie aucune donnée vers le serveur. Il ne faut pas utiliser `--initial-import` pour cette opération.
@@ -45,16 +45,16 @@ Cette commande crée la base locale si nécessaire, sauvegarde une éventuelle b
 Mise à jour habituelle (réutilise les réponses déjà présentes dans le cache) :
 
 ```bash
-./mettre-a-jour.sh
+./stage-explorer.sh --maj
 ```
 
 Rafraîchissement des sources de collecte (supprime le cache des API de collecte concernées avant de télécharger à nouveau les données) :
 
 ```bash
-./mettre-a-jour.sh --rafraichir
+./stage-explorer.sh --maj-api
 ```
 
-Le script enchaîne :
+La commande `--maj` enchaîne :
 
 - `scripts/supabase_sync.py --sync` (avant la collecte)
 - `scripts/collecte.py`
