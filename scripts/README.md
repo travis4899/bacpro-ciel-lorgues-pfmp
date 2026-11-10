@@ -1,24 +1,32 @@
 # Documentation des scripts — Stage Explorer
 
-Les scripts sont exécutés localement par l'enseignant. La commande habituelle est lancée depuis la racine du dépôt :
+Les scripts sont exécutés localement par l'enseignant. Le point d'entrée unique est lancé depuis la racine du dépôt :
 
 ```bash
-./mettre-a-jour.sh
+./stage-explorer.sh --help
 ```
 
-Le script organisateur effectue une synchronisation préalable avec Supabase, la collecte et la construction des données, une seconde synchronisation après mise à jour de SQLite, puis l'export public. Il n'est pas nécessaire de lancer ces étapes séparément pour une mise à jour normale.
+## Commandes principales
 
-Options disponibles :
+| Commande | Fonction |
+|---|---|
+| `./stage-explorer.sh --init-base` | Première construction locale puis import initial vers Supabase. À exécuter une seule fois pour créer la base centrale ; confirmation explicite demandée. |
+| `./stage-explorer.sh --init-poste` | Initialise ou remplace la copie SQLite depuis Supabase, après sauvegarde locale. N'envoie aucune donnée. |
+| `./stage-explorer.sh --sync` | Synchronise uniquement SQLite et Supabase, sans collecte ni reconstruction. |
+| `./stage-explorer.sh --maj` | Mise à jour complète en réutilisant les caches existants. |
+| `./stage-explorer.sh --maj-api` | Mise à jour complète en forçant le rafraîchissement des caches API concernés. |
 
-```bash
-./mettre-a-jour.sh --rafraichir
-./mettre-a-jour.sh --verbose
-./mettre-a-jour.sh --rafraichir --verbose
-```
+L'option `--verbose` peut être ajoutée à `--sync`, `--init-base`, `--maj` ou `--maj-api` pour afficher le détail des synchronisations Supabase.
 
-- `--rafraichir` force le rafraîchissement des données sources.
-- `--verbose` affiche les valeurs détaillées lors des synchronisations Supabase.
-- En cas d'erreur de synchronisation ou de conflit, le script s'arrête immédiatement : la collecte et l'export ne sont pas poursuivis avec une copie locale potentiellement incohérente.
+**Choisir la bonne commande :**
+- Pour récupérer les modifications du site ou transmettre des changements locaux, utiliser `--sync`.
+- Pour relancer collecte (avec cache), construction, intégration SQLite, synchronisation et export, utiliser `--maj`.
+- Pour forcer une nouvelle collecte des données API, utiliser `--maj-api`.
+- Sur un poste secondaire, utiliser `--init-poste`, jamais `--init-base`.
+
+En cas d'erreur de synchronisation ou de conflit, le traitement s'arrête immédiatement : la collecte et l'export ne sont pas poursuivis avec une copie locale potentiellement incohérente.
+
+Le script historique de mise à jour est conservé dans `scripts/mettre-a-jour.sh`. Il est appelé par `stage-explorer.sh` pour les opérations `--maj` et `--maj-api`, mais l'utilisation recommandée reste le point d'entrée unique.
 
 ## 1. Collecter les données — `collecte.py`
 
@@ -113,14 +121,14 @@ Si la base SQLite du poste est ancienne et que Supabase est la seule référence
 Utiliser à la place :
 
 ```bash
-python3 scripts/supabase_sync.py --initial-pull
+./stage-explorer.sh --init-poste
 ```
 
 La commande sauvegarde d'abord la base SQLite, puis remplace localement les fiches et les instantanés par ceux téléchargés depuis Supabase. Elle initialise le marqueur nécessaire à la synchronisation normale et ne réalise aucune écriture distante.
 
 La sauvegarde créée porte un nom de la forme `database/entreprises.avant-initial-pull-AAAAMMJJ-HHMMSS.db`. La commande initialise également les instantanés de synchronisation (`sync_state`) et le marqueur `initial_import_done`.
 
-Sur un poste neuf, la séquence est donc : cloner le dépôt, définir `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY`, exécuter `python3 scripts/supabase_sync.py --initial-pull`, puis utiliser `./mettre-a-jour.sh` pour lancer la collecte et la construction locales. L'initialisation seule ne lance pas de collecte.
+Sur un poste neuf, la séquence est donc : cloner le dépôt, définir `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY`, exécuter `python3 scripts/supabase_sync.py --initial-pull`, puis utiliser `./stage-explorer.sh --maj` pour lancer la collecte et la construction locales. L'initialisation seule ne lance pas de collecte.
 
 **À ne pas confondre :** `--initial-import` sert à envoyer vers Supabase une base SQLite locale qui constitue la première base de référence ; `--initial-pull` sert à reconstruire une copie locale depuis Supabase. Sur un second poste, c'est `--initial-pull` qu'il faut utiliser.
 
@@ -146,7 +154,7 @@ Le suivi des révisions est stocké dans les tables locales `sync_state` et `syn
 
 ### Ordre d'exécution du script organisateur
 
-`mettre-a-jour.sh` effectue les opérations dans cet ordre :
+`stage-explorer.sh --maj` effectue les opérations dans cet ordre :
 
 1. synchronisation SQLite ↔ Supabase avant toute collecte ;
 2. collecte des données sources ;
