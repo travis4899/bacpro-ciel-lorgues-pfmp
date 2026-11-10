@@ -106,6 +106,20 @@ Cette commande :
 
 Ne pas lancer `--initial-import` avant d'avoir vérifié que SQLite contient bien les données de référence à importer.
 
+### Initialiser un second poste depuis Supabase
+
+Si la base SQLite du poste est ancienne et que Supabase est la seule référence, ne pas utiliser `--initial-import` : cette option envoie des données locales vers Supabase.
+
+Utiliser à la place :
+
+```bash
+python3 scripts/supabase_sync.py --initial-pull
+```
+
+La commande sauvegarde d'abord la base SQLite, puis remplace localement les fiches et les instantanés par ceux téléchargés depuis Supabase. Elle initialise le marqueur nécessaire à la synchronisation normale et ne réalise aucune écriture distante.
+
+La sauvegarde créée porte un nom de la forme `database/entreprises.avant-initial-pull-AAAAMMJJ-HHMMSS.db`. Une fois l'initialisation terminée, la commande habituelle `./mettre-a-jour.sh` peut être utilisée.
+
 ### Synchronisation courante
 
 ```bash
